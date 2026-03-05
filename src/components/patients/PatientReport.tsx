@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button';
 import { Patient, Anthropometry, NutritionalPlan, Consultation } from '@/data/types';
 import { calculateAge, formatDate, formatDateLong } from '@/lib/utils';
 import { getIMCClassification } from '@/lib/calculations';
+import { classifyBodyFat, classifyVisceralFat, classifyWaterPercentage } from '@/lib/referenceRanges';
 import { Printer } from 'lucide-react';
 
 interface PatientReportProps {
@@ -19,6 +20,7 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
   const latest = sortedAnthro[sortedAnthro.length - 1];
   const first = sortedAnthro[0];
   const latestPlan = [...plans].sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+  const edad = calculateAge(patient.fechaNacimiento);
 
   const weightData = sortedAnthro.map((a) => ({
     fecha: formatDate(a.fecha, 'dd/MM/yy'),
@@ -41,23 +43,24 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
       <div id="patient-report" className="space-y-6 text-sm">
         {/* Header */}
         <div className="text-center border-b pb-4">
-          <h1 className="text-xl font-bold text-primary">Vitally - Clínica de Nutrición</h1>
+          <h1 className="text-xl font-bold text-primary">Vitally - Clinica de Nutricion</h1>
           <p className="text-gray-500 text-xs mt-1">Reporte generado el {formatDateLong(new Date().toISOString().split('T')[0])}</p>
         </div>
 
         {/* Patient Info */}
         <div>
-          <h2 className="text-base font-semibold text-gray-900 mb-3 border-b pb-1">Información del Paciente</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-3 border-b pb-1">Informacion del Paciente</h2>
           <div className="grid grid-cols-2 gap-x-6 gap-y-1">
             <p><span className="text-gray-500">Nombre:</span> {patient.nombre} {patient.apellido}</p>
-            <p><span className="text-gray-500">Edad:</span> {calculateAge(patient.fechaNacimiento)} años</p>
-            <p><span className="text-gray-500">Género:</span> {patient.genero === 'F' ? 'Femenino' : 'Masculino'}</p>
+            <p><span className="text-gray-500">Edad:</span> {edad} anios</p>
+            <p><span className="text-gray-500">Genero:</span> {patient.genero === 'F' ? 'Femenino' : 'Masculino'}</p>
             <p><span className="text-gray-500">DPI:</span> {patient.dpi}</p>
-            <p><span className="text-gray-500">Teléfono:</span> {patient.telefono}</p>
+            <p><span className="text-gray-500">Telefono:</span> {patient.telefono}</p>
             <p><span className="text-gray-500">Email:</span> {patient.email}</p>
+            <p><span className="text-gray-500">Estatura:</span> {patient.perfilClinico.estatura} cm</p>
           </div>
           {patient.antecedentesMedicos.length > 0 && (
-            <p className="mt-2"><span className="text-gray-500">Antecedentes Médicos:</span> {patient.antecedentesMedicos.join(', ')}</p>
+            <p className="mt-2"><span className="text-gray-500">Antecedentes Medicos:</span> {patient.antecedentesMedicos.join(', ')}</p>
           )}
           {patient.alergias.length > 0 && (
             <p><span className="text-gray-500">Alergias:</span> {patient.alergias.join(', ')}</p>
@@ -65,20 +68,32 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
           {patient.medicamentos.length > 0 && (
             <p><span className="text-gray-500">Medicamentos:</span> {patient.medicamentos.join(', ')}</p>
           )}
+          {patient.perfilClinico.patologias.length > 0 && (
+            <p><span className="text-gray-500">Patologias:</span> {patient.perfilClinico.patologias.join(', ')}</p>
+          )}
+          {patient.perfilClinico.sintomas.length > 0 && (
+            <p><span className="text-gray-500">Sintomas:</span> {patient.perfilClinico.sintomas.join(', ')}</p>
+          )}
+          {patient.perfilClinico.examenesLaboratorio.length > 0 && (
+            <p><span className="text-gray-500">Examenes Lab:</span> {patient.perfilClinico.examenesLaboratorio.join(', ')}</p>
+          )}
+          {patient.perfilClinico.alimentosNoTolerables.length > 0 && (
+            <p><span className="text-gray-500">Alimentos No Tolerables:</span> {patient.perfilClinico.alimentosNoTolerables.join(', ')}</p>
+          )}
         </div>
 
         {/* Progress Summary */}
         {latest && (
           <div>
             <h2 className="text-base font-semibold text-gray-900 mb-3 border-b pb-1">Resumen de Progreso</h2>
-            <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-5 gap-2 mb-4">
               <div className="border rounded-lg p-2 text-center">
                 <p className="text-xs text-gray-500">Peso Actual</p>
                 <p className="font-bold">{latest.peso} kg</p>
               </div>
               <div className="border rounded-lg p-2 text-center">
-                <p className="text-xs text-gray-500">Talla</p>
-                <p className="font-bold">{latest.talla} cm</p>
+                <p className="text-xs text-gray-500">Peso Ideal</p>
+                <p className="font-bold">{latest.pesoIdeal} kg</p>
               </div>
               <div className="border rounded-lg p-2 text-center">
                 <p className="text-xs text-gray-500">IMC</p>
@@ -87,17 +102,23 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
               </div>
               <div className="border rounded-lg p-2 text-center">
                 <p className="text-xs text-gray-500">% Grasa</p>
-                <p className="font-bold">{latest.porcentajeGrasa}%</p>
+                <p className="font-bold" style={{ color: classifyBodyFat(latest.porcentajeGrasa, edad, patient.genero).color }}>{latest.porcentajeGrasa}%</p>
+                <p className="text-xs text-gray-500">{classifyBodyFat(latest.porcentajeGrasa, edad, patient.genero).label}</p>
+              </div>
+              <div className="border rounded-lg p-2 text-center">
+                <p className="text-xs text-gray-500">G. Visceral</p>
+                <p className="font-bold" style={{ color: classifyVisceralFat(latest.grasaVisceral).color }}>{latest.grasaVisceral}</p>
+                <p className="text-xs text-gray-500">{classifyVisceralFat(latest.grasaVisceral).label}</p>
               </div>
             </div>
 
             {sortedAnthro.length >= 2 && (
               <div className="mb-4">
-                <p className="text-xs text-gray-500 font-medium mb-2">Cambios desde primera medición ({formatDate(first.fecha)}):</p>
+                <p className="text-xs text-gray-500 font-medium mb-2">Cambios desde primera medicion ({formatDate(first.fecha)}):</p>
                 <table className="w-full text-xs border">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="text-left py-1 px-2 border-b">Métrica</th>
+                      <th className="text-left py-1 px-2 border-b">Metrica</th>
                       <th className="text-right py-1 px-2 border-b">Inicial</th>
                       <th className="text-right py-1 px-2 border-b">Actual</th>
                       <th className="text-right py-1 px-2 border-b">Cambio</th>
@@ -129,11 +150,27 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-1 px-2">% Músculo</td>
-                      <td className="text-right py-1 px-2">{first.porcentajeMusculo}%</td>
-                      <td className="text-right py-1 px-2">{latest.porcentajeMusculo}%</td>
-                      <td className="text-right py-1 px-2 font-medium" style={{ color: latest.porcentajeMusculo >= first.porcentajeMusculo ? '#16A34A' : '#DC2626' }}>
-                        {(latest.porcentajeMusculo - first.porcentajeMusculo) > 0 ? '+' : ''}{(latest.porcentajeMusculo - first.porcentajeMusculo).toFixed(1)}%
+                      <td className="py-1 px-2 border-b">Masa Muscular (kg)</td>
+                      <td className="text-right py-1 px-2 border-b">{first.masaMusculo}</td>
+                      <td className="text-right py-1 px-2 border-b">{latest.masaMusculo}</td>
+                      <td className="text-right py-1 px-2 border-b font-medium" style={{ color: latest.masaMusculo >= first.masaMusculo ? '#16A34A' : '#DC2626' }}>
+                        {(latest.masaMusculo - first.masaMusculo) > 0 ? '+' : ''}{(latest.masaMusculo - first.masaMusculo).toFixed(1)} kg
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-1 px-2 border-b">% Agua</td>
+                      <td className="text-right py-1 px-2 border-b">{first.porcentajeAgua}%</td>
+                      <td className="text-right py-1 px-2 border-b">{latest.porcentajeAgua}%</td>
+                      <td className="text-right py-1 px-2 border-b font-medium" style={{ color: latest.porcentajeAgua >= first.porcentajeAgua ? '#16A34A' : '#DC2626' }}>
+                        {(latest.porcentajeAgua - first.porcentajeAgua) > 0 ? '+' : ''}{(latest.porcentajeAgua - first.porcentajeAgua).toFixed(1)}%
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-1 px-2">Grasa Visceral</td>
+                      <td className="text-right py-1 px-2">{first.grasaVisceral}</td>
+                      <td className="text-right py-1 px-2">{latest.grasaVisceral}</td>
+                      <td className="text-right py-1 px-2 font-medium" style={{ color: latest.grasaVisceral <= first.grasaVisceral ? '#16A34A' : '#DC2626' }}>
+                        {(latest.grasaVisceral - first.grasaVisceral) > 0 ? '+' : ''}{latest.grasaVisceral - first.grasaVisceral}
                       </td>
                     </tr>
                   </tbody>
@@ -145,7 +182,7 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
             {weightData.length >= 2 && (
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <p className="text-xs font-medium text-gray-700 mb-2">Evolución de Peso (kg)</p>
+                  <p className="text-xs font-medium text-gray-700 mb-2">Evolucion de Peso (kg)</p>
                   <LineChart width={250} height={160} data={weightData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="fecha" tick={{ fontSize: 9 }} />
@@ -180,11 +217,11 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
             <p className="mb-2"><span className="text-gray-500">Objetivo:</span> {latestPlan.objetivo}</p>
             <div className="grid grid-cols-4 gap-3 mb-3">
               <div className="border rounded-lg p-2 text-center">
-                <p className="text-xs text-gray-500">Calorías</p>
+                <p className="text-xs text-gray-500">Calorias</p>
                 <p className="font-bold">{latestPlan.caloriasDiarias} kcal</p>
               </div>
               <div className="border rounded-lg p-2 text-center bg-blue-50">
-                <p className="text-xs text-blue-600">Proteínas</p>
+                <p className="text-xs text-blue-600">Proteinas</p>
                 <p className="font-bold text-blue-700">{latestPlan.macros.proteinasGramos}g ({latestPlan.macros.proteinasPorcentaje}%)</p>
               </div>
               <div className="border rounded-lg p-2 text-center bg-yellow-50">
@@ -214,11 +251,11 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
         {/* Consultation History */}
         {consultations.length > 0 && (
           <div>
-            <h2 className="text-base font-semibold text-gray-900 mb-3 border-b pb-1">Últimas Consultas</h2>
+            <h2 className="text-base font-semibold text-gray-900 mb-3 border-b pb-1">Ultimas Consultas</h2>
             {consultations.slice(0, 5).map((c) => (
               <div key={c.id} className="mb-2 pb-2 border-b border-gray-100 last:border-0">
                 <p className="font-medium text-gray-800">{formatDate(c.fecha)} — {c.motivo}</p>
-                <p className="text-gray-500">Diagnóstico: {c.diagnostico}</p>
+                <p className="text-gray-500">Diagnostico: {c.diagnostico}</p>
               </div>
             ))}
           </div>
@@ -226,7 +263,7 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
 
         {/* Footer */}
         <div className="text-center border-t pt-4 text-xs text-gray-400">
-          <p>Generado el {formatDateLong(new Date().toISOString().split('T')[0])} — Vitally Clínica de Nutrición</p>
+          <p>Generado el {formatDateLong(new Date().toISOString().split('T')[0])} — Vitally Clinica de Nutricion</p>
         </div>
       </div>
     </div>

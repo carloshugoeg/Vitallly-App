@@ -1,18 +1,22 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, User, Calendar, Stethoscope } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import MeasurementsTab from '@/components/consultation/MeasurementsTab';
+import ClinicalNotesTab from '@/components/consultation/ClinicalNotesTab';
 import { consultations } from '@/data/consultations';
 import { patients } from '@/data/patients';
 import { anthropometryData } from '@/data/anthropometry';
-import { formatDateLong } from '@/lib/utils';
-import { getIMCClassification } from '@/lib/calculations';
+import { formatDateLong, calculateAge } from '@/lib/utils';
+
+const tabNames = ['Mediciones', 'Notas Clinicas'];
 
 export default function ConsultaDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const [activeTab, setActiveTab] = useState(0);
 
   const consultation = consultations.find((c) => c.id === id);
   if (!consultation) {
@@ -26,6 +30,36 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
 
   const patient = patients.find((p) => p.id === consultation.pacienteId);
   const anthropometry = anthropometryData.find((a) => a.id === consultation.antropometriaId);
+  const talla = patient?.perfilClinico?.estatura || anthropometry?.talla || 0;
+  const genero = patient?.genero || 'F';
+  const edad = patient ? calculateAge(patient.fechaNacimiento) : 30;
+
+  const measurementValues = anthropometry ? {
+    peso: anthropometry.peso.toString(),
+    porcentajeGrasa: anthropometry.porcentajeGrasa.toString(),
+    porcentajeAgua: anthropometry.porcentajeAgua.toString(),
+    masaMusculo: anthropometry.masaMusculo.toString(),
+    valoracionFisica: anthropometry.valoracionFisica.toString(),
+    masaOsea: anthropometry.masaOsea.toString(),
+    dci: anthropometry.dci.toString(),
+    edadMetabolica: anthropometry.edadMetabolica.toString(),
+    grasaVisceral: anthropometry.grasaVisceral.toString(),
+    circunferenciaCintura: anthropometry.circunferenciaCintura.toString(),
+    circunferenciaCadera: anthropometry.circunferenciaCadera.toString(),
+    notasAntropometria: anthropometry.notas,
+  } : {
+    peso: '', porcentajeGrasa: '', porcentajeAgua: '', masaMusculo: '',
+    valoracionFisica: '', masaOsea: '', dci: '', edadMetabolica: '',
+    grasaVisceral: '', circunferenciaCintura: '', circunferenciaCadera: '',
+    notasAntropometria: '',
+  };
+
+  const notesValues = {
+    motivo: consultation.motivo,
+    notasClinicas: consultation.notasClinicas,
+    diagnostico: consultation.diagnostico,
+    recomendaciones: consultation.recomendaciones,
+  };
 
   return (
     <div className="space-y-6">
@@ -39,8 +73,8 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
+      {/* Patient info */}
       <div className="grid grid-cols-3 gap-6">
-        {/* Patient info */}
         {patient && (
           <Card>
             <div className="flex items-center gap-3 mb-3">
@@ -65,81 +99,56 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
             <span className="text-sm font-medium">{formatDateLong(consultation.fecha)}</span>
           </div>
           <p className="text-sm"><strong>Motivo:</strong> {consultation.motivo}</p>
-        </Card>
-      </div>
-
-      <Card>
-        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <Stethoscope size={16} /> Notas Clínicas
-        </h3>
-        <p className="text-sm text-gray-600 whitespace-pre-wrap">{consultation.notasClinicas}</p>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-6">
-        <Card>
-          <h3 className="font-semibold text-gray-900 mb-3">Diagnóstico</h3>
-          <p className="text-sm text-gray-600">{consultation.diagnostico}</p>
-        </Card>
-        <Card>
-          <h3 className="font-semibold text-gray-900 mb-3">Recomendaciones</h3>
-          <p className="text-sm text-gray-600">{consultation.recomendaciones}</p>
-        </Card>
-      </div>
-
-      {anthropometry && (
-        <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Medidas Antropométricas</h3>
-          <div className="grid grid-cols-4 gap-4">
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500">Peso</p>
-              <p className="text-lg font-bold text-gray-900">{anthropometry.peso} kg</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500">Talla</p>
-              <p className="text-lg font-bold text-gray-900">{anthropometry.talla} cm</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500">IMC</p>
-              <p className="text-lg font-bold" style={{ color: getIMCClassification(anthropometry.imc).color }}>
-                {anthropometry.imc}
-              </p>
-              <p className="text-xs" style={{ color: getIMCClassification(anthropometry.imc).color }}>
-                {getIMCClassification(anthropometry.imc).label}
-              </p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500">% Grasa</p>
-              <p className="text-lg font-bold text-gray-900">{anthropometry.porcentajeGrasa}%</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500">Cintura</p>
-              <p className="text-lg font-bold text-gray-900">{anthropometry.circunferenciaCintura} cm</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500">Cadera</p>
-              <p className="text-lg font-bold text-gray-900">{anthropometry.circunferenciaCadera} cm</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500">Brazo</p>
-              <p className="text-lg font-bold text-gray-900">{anthropometry.circunferenciaBrazo} cm</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500">% Músculo</p>
-              <p className="text-lg font-bold text-gray-900">{anthropometry.porcentajeMusculo}%</p>
-            </div>
-          </div>
-          {anthropometry.notas && (
-            <p className="text-sm text-gray-500 mt-3">{anthropometry.notas}</p>
+          {consultation.proximaCita && (
+            <p className="text-sm text-gray-500 mt-2">
+              <strong>Proxima cita:</strong> {formatDateLong(consultation.proximaCita)}
+            </p>
           )}
+        </Card>
+      </div>
+
+      {/* Tab navigation */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {tabNames.map((tab, i) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(i)}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === i
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 0 && anthropometry && (
+        <MeasurementsTab
+          talla={talla}
+          genero={genero}
+          edad={edad}
+          values={measurementValues}
+          onChange={() => {}}
+          readOnly
+        />
+      )}
+
+      {activeTab === 0 && !anthropometry && (
+        <Card>
+          <p className="text-center text-gray-500 py-8">No hay mediciones registradas para esta consulta.</p>
         </Card>
       )}
 
-      {consultation.proximaCita && (
-        <Card>
-          <p className="text-sm text-gray-600">
-            <strong>Próxima cita sugerida:</strong> {formatDateLong(consultation.proximaCita)}
-          </p>
-        </Card>
+      {activeTab === 1 && (
+        <ClinicalNotesTab
+          values={notesValues}
+          onChange={() => {}}
+          patient={patient}
+          readOnly
+        />
       )}
     </div>
   );

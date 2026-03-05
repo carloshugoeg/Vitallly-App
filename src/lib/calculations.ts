@@ -1,4 +1,5 @@
 import { IMC_CLASSIFICATIONS, ACTIVITY_LEVELS } from './constants';
+export { calculatePesoIdeal, calculateIndiceCinturaCadera } from './referenceRanges';
 
 export function calculateIMC(peso: number, tallaCm: number): number {
   const tallaM = tallaCm / 100;

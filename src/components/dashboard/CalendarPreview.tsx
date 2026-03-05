@@ -1,16 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
+import DayPopover from '@/components/ui/DayPopover';
 import { appointments } from '@/data/appointments';
 
 const DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
 
 export default function CalendarPreview() {
+  const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
+  const [hoveredRect, setHoveredRect] = useState<DOMRect | null>(null);
+  const [clickedDate, setClickedDate] = useState<Date | null>(null);
+  const [clickedRect, setClickedRect] = useState<DOMRect | null>(null);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -18,6 +25,39 @@ export default function CalendarPreview() {
 
   const startDay = getDay(monthStart);
   const blanks = startDay === 0 ? 6 : startDay - 1;
+
+  const handleMouseEnter = useCallback((day: Date, e: React.MouseEvent<HTMLDivElement>) => {
+    if (clickedDate) return;
+    setHoveredDate(day);
+    setHoveredRect(e.currentTarget.getBoundingClientRect());
+  }, [clickedDate]);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredDate(null);
+    setHoveredRect(null);
+  }, []);
+
+  const handleClick = useCallback((day: Date, e: React.MouseEvent<HTMLDivElement>) => {
+    setHoveredDate(null);
+    setHoveredRect(null);
+    setClickedDate(day);
+    setClickedRect(e.currentTarget.getBoundingClientRect());
+  }, []);
+
+  const handleCloseClick = useCallback(() => {
+    setClickedDate(null);
+    setClickedRect(null);
+  }, []);
+
+  const handleNewAppointment = useCallback((date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    router.push(`/citas?date=${dateStr}&action=new`);
+  }, [router]);
+
+  const handleViewAppointments = useCallback((date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    router.push(`/citas?date=${dateStr}`);
+  }, [router]);
 
   return (
     <Card>
@@ -56,8 +96,11 @@ export default function CalendarPreview() {
           return (
             <div
               key={dateStr}
-              className={`relative py-1 text-sm rounded-lg ${
-                isToday ? 'bg-primary text-white font-bold' : 'text-gray-700'
+              onMouseEnter={(e) => handleMouseEnter(day, e)}
+              onMouseLeave={handleMouseLeave}
+              onClick={(e) => handleClick(day, e)}
+              className={`relative py-1 text-sm rounded-lg cursor-pointer transition-colors ${
+                isToday ? 'bg-primary text-white font-bold' : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
               {format(day, 'd')}
@@ -81,6 +124,28 @@ export default function CalendarPreview() {
           );
         })}
       </div>
+
+      {hoveredDate && !clickedDate && (
+        <DayPopover
+          date={hoveredDate}
+          anchorRect={hoveredRect}
+          mode="hover"
+          onClose={() => {}}
+          onNewAppointment={handleNewAppointment}
+          onViewAppointments={handleViewAppointments}
+        />
+      )}
+
+      {clickedDate && (
+        <DayPopover
+          date={clickedDate}
+          anchorRect={clickedRect}
+          mode="click"
+          onClose={handleCloseClick}
+          onNewAppointment={handleNewAppointment}
+          onViewAppointments={handleViewAppointments}
+        />
+      )}
     </Card>
   );
 }

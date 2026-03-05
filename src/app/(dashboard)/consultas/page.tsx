@@ -8,7 +8,9 @@ import Button from '@/components/ui/Button';
 import SearchBar from '@/components/ui/SearchBar';
 import { consultations } from '@/data/consultations';
 import { patients } from '@/data/patients';
+import { anthropometryData } from '@/data/anthropometry';
 import { formatDate } from '@/lib/utils';
+import { getIMCClassification } from '@/lib/calculations';
 
 export default function ConsultasPage() {
   const [search, setSearch] = useState('');
@@ -40,7 +42,7 @@ export default function ConsultasPage() {
 
       <Card>
         <div className="mb-4">
-          <SearchBar value={search} onChange={setSearch} placeholder="Buscar por paciente o diagnóstico..." />
+          <SearchBar value={search} onChange={setSearch} placeholder="Buscar por paciente o diagnostico..." />
         </div>
 
         <div className="overflow-x-auto">
@@ -50,13 +52,18 @@ export default function ConsultasPage() {
                 <th className="text-left py-3 px-4 font-medium text-gray-500">Fecha</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-500">Paciente</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-500">Motivo</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-500">Diagnóstico</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-500">Diagnostico</th>
+                <th className="text-right py-3 px-4 font-medium text-gray-500">Peso</th>
+                <th className="text-right py-3 px-4 font-medium text-gray-500">IMC</th>
+                <th className="text-right py-3 px-4 font-medium text-gray-500">% Grasa</th>
                 <th className="text-right py-3 px-4 font-medium text-gray-500">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((c) => {
                 const patient = patients.find((p) => p.id === c.pacienteId);
+                const anthro = anthropometryData.find((a) => a.id === c.antropometriaId);
+                const imcClass = anthro ? getIMCClassification(anthro.imc) : null;
                 return (
                   <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td className="py-3 px-4 text-gray-600">{formatDate(c.fecha)}</td>
@@ -65,6 +72,17 @@ export default function ConsultasPage() {
                     </td>
                     <td className="py-3 px-4 text-gray-600">{c.motivo}</td>
                     <td className="py-3 px-4 text-gray-600 max-w-xs truncate">{c.diagnostico}</td>
+                    <td className="py-3 px-4 text-right text-gray-600">
+                      {anthro ? `${anthro.peso} kg` : '--'}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      {anthro && imcClass ? (
+                        <span className="font-medium" style={{ color: imcClass.color }}>{anthro.imc}</span>
+                      ) : '--'}
+                    </td>
+                    <td className="py-3 px-4 text-right text-gray-600">
+                      {anthro ? `${anthro.porcentajeGrasa}%` : '--'}
+                    </td>
                     <td className="py-3 px-4 text-right">
                       <Link href={`/consultas/${c.id}`}>
                         <button className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-primary transition-colors">

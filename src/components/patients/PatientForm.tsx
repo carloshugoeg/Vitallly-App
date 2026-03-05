@@ -51,6 +51,12 @@ export default function PatientForm({ initialData, isEditing }: PatientFormProps
     consumoAlcohol: initialData?.estiloVida.consumoAlcohol || false,
     fumador: initialData?.estiloVida.fumador || false,
     ejercicioSemanal: initialData?.estiloVida.ejercicioSemanal || '',
+    estatura: initialData?.perfilClinico?.estatura?.toString() || '',
+    patologias: initialData?.perfilClinico?.patologias?.join(', ') || '',
+    examenesLaboratorio: initialData?.perfilClinico?.examenesLaboratorio?.join(', ') || '',
+    sintomas: initialData?.perfilClinico?.sintomas?.join(', ') || '',
+    vicios: initialData?.perfilClinico?.vicios?.join(', ') || '',
+    alimentosNoTolerables: initialData?.perfilClinico?.alimentosNoTolerables?.join(', ') || '',
     notas: initialData?.notas || '',
   });
 
@@ -148,6 +154,45 @@ export default function PatientForm({ initialData, isEditing }: PatientFormProps
               Fumador
             </label>
           </div>
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Perfil Clinico Nutricional</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <Input id="estatura" label="Estatura (cm)" type="number" step="0.1" value={form.estatura} onChange={(e) => handleChange('estatura', e.target.value)} />
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">Patologias (separadas por coma)</label>
+            <textarea
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+              rows={2}
+              placeholder="Ej: Hipotiroidismo, Diabetes tipo 2"
+              value={form.patologias}
+              onChange={(e) => handleChange('patologias', e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">Examenes de Laboratorio (separados por coma)</label>
+            <textarea
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+              rows={2}
+              placeholder="Ej: TSH: 3.2, Glucosa: 105 mg/dL"
+              value={form.examenesLaboratorio}
+              onChange={(e) => handleChange('examenesLaboratorio', e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">Sintomas (separados por coma)</label>
+            <textarea
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+              rows={2}
+              placeholder="Ej: Fatiga, Mareos"
+              value={form.sintomas}
+              onChange={(e) => handleChange('sintomas', e.target.value)}
+            />
+          </div>
+          <Input id="vicios" label="Vicios (separados por coma)" value={form.vicios} onChange={(e) => handleChange('vicios', e.target.value)} />
+          <Input id="alimentosNoTolerables" label="Alimentos No Tolerables (separados por coma)" value={form.alimentosNoTolerables} onChange={(e) => handleChange('alimentosNoTolerables', e.target.value)} />
         </div>
       </Card>
 

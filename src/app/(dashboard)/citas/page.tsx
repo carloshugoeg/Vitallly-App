@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Plus, Clock } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import DayPopover from '@/components/ui/DayPopover';
 import { appointments as initialAppointments } from '@/data/appointments';
 import { patients } from '@/data/patients';
 import { APPOINTMENT_TYPES } from '@/lib/constants';
@@ -19,10 +21,18 @@ const statusBadge = { programada: 'blue' as const, completada: 'green' as const,
 const statusLabel = { programada: 'Programada', completada: 'Completada', cancelada: 'Cancelada' };
 
 export default function CitasPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
   const [appointmentsList] = useState(initialAppointments);
+
+  const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
+  const [hoveredRect, setHoveredRect] = useState<DOMRect | null>(null);
+  const [clickedDate, setClickedDate] = useState<Date | null>(null);
+  const [clickedRect, setClickedRect] = useState<DOMRect | null>(null);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -37,6 +47,7 @@ export default function CitasPage() {
 
   const patientOptions = [
     { value: '', label: 'Seleccionar paciente...' },
+    { value: '__new__', label: '+ Nuevo paciente' },
     ...patients.map((p) => ({ value: p.id, label: `${p.nombre} ${p.apellido}` })),
   ];
 
@@ -48,15 +59,74 @@ export default function CitasPage() {
   ];
 
   const [newAppt, setNewAppt] = useState({ pacienteId: '', fecha: selectedDateStr, hora: '09:00', tipo: 'seguimiento', motivo: '', estado: 'programada', notas: '' });
+  const [newPatientName, setNewPatientName] = useState('');
 
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Handle incoming searchParams from CalendarPreview navigation
+  useEffect(() => {
+    const dateParam = searchParams.get('date');
+    const actionParam = searchParams.get('action');
+    if (dateParam) {
+      try {
+        const parsed = parseISO(dateParam);
+        setSelectedDate(parsed);
+        setCurrentMonth(startOfMonth(parsed));
+        setNewAppt((prev) => ({ ...prev, fecha: dateParam }));
+        if (actionParam === 'new') {
+          setShowModal(true);
+        }
+        // Clean up URL params
+        router.replace('/citas');
+      } catch {
+        // ignore invalid date
+      }
+    }
+  }, [searchParams, router]);
 
   const handleSaveAppointment = (e: React.FormEvent) => {
     e.preventDefault();
     setShowModal(false);
+    setNewPatientName('');
+    setNewAppt((prev) => ({ ...prev, pacienteId: '' }));
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
   };
+
+  const handleMouseEnter = useCallback((day: Date, e: React.MouseEvent<HTMLButtonElement>) => {
+    if (clickedDate) return;
+    setHoveredDate(day);
+    setHoveredRect(e.currentTarget.getBoundingClientRect());
+  }, [clickedDate]);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredDate(null);
+    setHoveredRect(null);
+  }, []);
+
+  const handleDayClick = useCallback((day: Date, e: React.MouseEvent<HTMLButtonElement>) => {
+    setSelectedDate(day);
+    setHoveredDate(null);
+    setHoveredRect(null);
+    setClickedDate(day);
+    setClickedRect(e.currentTarget.getBoundingClientRect());
+  }, []);
+
+  const handleCloseClick = useCallback(() => {
+    setClickedDate(null);
+    setClickedRect(null);
+  }, []);
+
+  const handleNewAppointment = useCallback((date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    setSelectedDate(date);
+    setNewAppt((prev) => ({ ...prev, fecha: dateStr }));
+    setShowModal(true);
+  }, []);
+
+  const handleViewAppointments = useCallback((date: Date) => {
+    setSelectedDate(date);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -109,7 +179,9 @@ export default function CitasPage() {
               return (
                 <button
                   key={dateStr}
-                  onClick={() => setSelectedDate(day)}
+                  onMouseEnter={(e) => handleMouseEnter(day, e)}
+                  onMouseLeave={handleMouseLeave}
+                  onClick={(e) => handleDayClick(day, e)}
                   className={`relative py-1.5 text-sm rounded-lg transition-colors ${
                     isSelected
                       ? 'bg-primary text-white font-bold'
@@ -135,6 +207,28 @@ export default function CitasPage() {
               );
             })}
           </div>
+
+          {hoveredDate && !clickedDate && (
+            <DayPopover
+              date={hoveredDate}
+              anchorRect={hoveredRect}
+              mode="hover"
+              onClose={() => {}}
+              onNewAppointment={handleNewAppointment}
+              onViewAppointments={handleViewAppointments}
+            />
+          )}
+
+          {clickedDate && (
+            <DayPopover
+              date={clickedDate}
+              anchorRect={clickedRect}
+              mode="click"
+              onClose={handleCloseClick}
+              onNewAppointment={handleNewAppointment}
+              onViewAppointments={handleViewAppointments}
+            />
+          )}
         </Card>
 
         {/* Day agenda */}
@@ -174,9 +268,12 @@ export default function CitasPage() {
       </div>
 
       {/* New appointment modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Nueva Cita">
+      <Modal isOpen={showModal} onClose={() => { setShowModal(false); setNewPatientName(''); }} title="Nueva Cita">
         <form onSubmit={handleSaveAppointment} className="space-y-4">
-          <Select id="appt-patient" label="Paciente" options={patientOptions} value={newAppt.pacienteId} onChange={(e) => setNewAppt({ ...newAppt, pacienteId: e.target.value })} required />
+          <Select id="appt-patient" label="Paciente" options={patientOptions} value={newAppt.pacienteId} onChange={(e) => { setNewAppt({ ...newAppt, pacienteId: e.target.value }); if (e.target.value !== '__new__') setNewPatientName(''); }} required={newAppt.pacienteId !== '__new__'} />
+          {newAppt.pacienteId === '__new__' && (
+            <Input id="appt-new-patient" label="Nombre completo del paciente" value={newPatientName} onChange={(e) => setNewPatientName(e.target.value)} required placeholder="Ej: Juan Pérez García" />
+          )}
           <div className="grid grid-cols-2 gap-4">
             <Input id="appt-date" label="Fecha" type="date" value={newAppt.fecha} onChange={(e) => setNewAppt({ ...newAppt, fecha: e.target.value })} required />
             <Input id="appt-time" label="Hora" type="time" value={newAppt.hora} onChange={(e) => setNewAppt({ ...newAppt, hora: e.target.value })} required />

@@ -25,6 +25,14 @@ export interface Patient {
     fumador: boolean;
     ejercicioSemanal: string;
   };
+  perfilClinico: {
+    estatura: number; // cm
+    patologias: string[];
+    examenesLaboratorio: string[];
+    sintomas: string[];
+    vicios: string[];
+    alimentosNoTolerables: string[];
+  };
   fechaRegistro: string;
   notas: string;
 }
@@ -50,9 +58,15 @@ export interface Anthropometry {
   imc: number;
   circunferenciaCintura: number; // cm
   circunferenciaCadera: number; // cm
-  circunferenciaBrazo: number; // cm
   porcentajeGrasa: number;
-  porcentajeMusculo: number;
+  pesoIdeal: number; // kg
+  porcentajeAgua: number; // %
+  masaMusculo: number; // kg
+  valoracionFisica: number; // 1-9
+  masaOsea: number; // kg
+  dci: number; // kcal (daily calorie intake)
+  edadMetabolica: number; // years
+  grasaVisceral: number; // 1-59
   notas: string;
 }
 

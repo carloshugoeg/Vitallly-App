@@ -2,7 +2,7 @@
 
 import { use, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Edit, Phone, Mail, MapPin, AlertCircle, Pill, Heart, Activity, Calendar, ClipboardList, Utensils, BarChart3, Plus, Pencil, Trash2, Copy, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, Phone, Mail, MapPin, AlertCircle, Pill, Heart, Activity, Calendar, ClipboardList, Utensils, BarChart3, Plus, Pencil, Trash2, Copy, FileText, Beaker } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -11,6 +11,7 @@ import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import NutritionalPlanForm from '@/components/patients/NutritionalPlanForm';
 import PatientReport from '@/components/patients/PatientReport';
+import MeasurementHistoryTable from '@/components/consultation/MeasurementHistoryTable';
 import { patients } from '@/data/patients';
 import { appointments } from '@/data/appointments';
 import { consultations } from '@/data/consultations';
@@ -20,8 +21,9 @@ import { NutritionalPlan } from '@/data/types';
 import { calculateAge, formatDate, getInitials } from '@/lib/utils';
 import { ACTIVITY_LEVELS, APPOINTMENT_TYPES } from '@/lib/constants';
 import { getIMCClassification } from '@/lib/calculations';
+import { classifyBodyFat, classifyVisceralFat, classifyWaterPercentage } from '@/lib/referenceRanges';
 
-const tabs = ['General', 'Antropometría', 'Consultas', 'Citas', 'Planes Nutricionales', 'Métricas'];
+const tabs = ['General', 'Antropometria', 'Consultas', 'Citas', 'Planes Nutricionales', 'Metricas'];
 
 export default function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -44,6 +46,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
     );
   }
 
+  const edad = calculateAge(patient.fechaNacimiento);
   const patientAnthropometry = anthropometryData.filter((a) => a.pacienteId === id).sort((a, b) => a.fecha.localeCompare(b.fecha));
   const patientConsultations = consultations.filter((c) => c.pacienteId === id).sort((a, b) => b.fecha.localeCompare(a.fecha));
   const patientAppointments = appointments.filter((a) => a.pacienteId === id).sort((a, b) => b.fecha.localeCompare(a.fecha));
@@ -62,6 +65,23 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   const bmiData = filteredAnthro.map((a) => ({
     fecha: formatDate(a.fecha, 'dd/MM/yy'),
     imc: a.imc,
+  }));
+
+  const bodyCompData = filteredAnthro.map((a) => ({
+    fecha: formatDate(a.fecha, 'dd/MM/yy'),
+    grasa: a.porcentajeGrasa,
+    agua: a.porcentajeAgua,
+    musculo: a.masaMusculo,
+  }));
+
+  const visceralData = filteredAnthro.map((a) => ({
+    fecha: formatDate(a.fecha, 'dd/MM/yy'),
+    grasaVisceral: a.grasaVisceral,
+  }));
+
+  const waterData = filteredAnthro.map((a) => ({
+    fecha: formatDate(a.fecha, 'dd/MM/yy'),
+    agua: a.porcentajeAgua,
   }));
 
   const filteredPlans = plansList
@@ -90,7 +110,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   };
 
   const handleDeletePlan = (planId: string) => {
-    if (window.confirm('¿Está seguro de eliminar este plan nutricional?')) {
+    if (window.confirm('Esta seguro de eliminar este plan nutricional?')) {
       setPlansList(prev => prev.filter(p => p.id !== planId));
       setShowPlanSuccess('Plan nutricional eliminado.');
       setTimeout(() => setShowPlanSuccess(''), 3000);
@@ -124,7 +144,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{patient.nombre} {patient.apellido}</h1>
-              <p className="text-sm text-gray-500">{calculateAge(patient.fechaNacimiento)} años · {patient.genero === 'F' ? 'Femenino' : 'Masculino'} · {patient.ocupacion}</p>
+              <p className="text-sm text-gray-500">{edad} anios · {patient.genero === 'F' ? 'Femenino' : 'Masculino'} · {patient.ocupacion}</p>
             </div>
           </div>
         </div>
@@ -138,7 +158,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Quick stats */}
       {latestAnthro && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           <Card className="text-center">
             <p className="text-sm text-gray-500">Peso Actual</p>
             <p className="text-xl font-bold text-gray-900">{latestAnthro.peso} kg</p>
@@ -154,7 +174,17 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           </Card>
           <Card className="text-center">
             <p className="text-sm text-gray-500">% Grasa</p>
-            <p className="text-xl font-bold text-gray-900">{latestAnthro.porcentajeGrasa}%</p>
+            <p className="text-xl font-bold" style={{ color: classifyBodyFat(latestAnthro.porcentajeGrasa, edad, patient.genero).color }}>
+              {latestAnthro.porcentajeGrasa}%
+            </p>
+            <p className="text-xs text-gray-500">{classifyBodyFat(latestAnthro.porcentajeGrasa, edad, patient.genero).label}</p>
+          </Card>
+          <Card className="text-center">
+            <p className="text-sm text-gray-500">G. Visceral</p>
+            <p className="text-xl font-bold" style={{ color: classifyVisceralFat(latestAnthro.grasaVisceral).color }}>
+              {latestAnthro.grasaVisceral}
+            </p>
+            <p className="text-xs text-gray-500">{classifyVisceralFat(latestAnthro.grasaVisceral).label}</p>
           </Card>
         </div>
       )}
@@ -197,7 +227,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Heart size={16} /> Antecedentes</h3>
             <div className="space-y-3 text-sm">
               <div>
-                <p className="text-xs text-gray-500 font-medium mb-1">Médicos</p>
+                <p className="text-xs text-gray-500 font-medium mb-1">Medicos</p>
                 <div className="flex flex-wrap gap-1">{patient.antecedentesMedicos.map((a) => <Badge key={a} variant="yellow">{a}</Badge>)}</div>
               </div>
               <div>
@@ -228,10 +258,61 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Activity size={16} /> Estilo de Vida</h3>
             <div className="space-y-2 text-sm">
               <p><span className="text-gray-500">Actividad:</span> {ACTIVITY_LEVELS[patient.estiloVida.nivelActividad].label}</p>
-              <p><span className="text-gray-500">Sueño:</span> {patient.estiloVida.horasSueno} horas</p>
+              <p><span className="text-gray-500">Suenio:</span> {patient.estiloVida.horasSueno} horas</p>
               <p><span className="text-gray-500">Ejercicio:</span> {patient.estiloVida.ejercicioSemanal}</p>
-              <p><span className="text-gray-500">Alcohol:</span> {patient.estiloVida.consumoAlcohol ? 'Sí' : 'No'}</p>
-              <p><span className="text-gray-500">Fumador:</span> {patient.estiloVida.fumador ? 'Sí' : 'No'}</p>
+              <p><span className="text-gray-500">Alcohol:</span> {patient.estiloVida.consumoAlcohol ? 'Si' : 'No'}</p>
+              <p><span className="text-gray-500">Fumador:</span> {patient.estiloVida.fumador ? 'Si' : 'No'}</p>
+            </div>
+          </Card>
+
+          {/* Perfil Clinico Card */}
+          <Card className="col-span-2">
+            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Beaker size={16} /> Perfil Clinico Nutricional</h3>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-gray-500 font-medium mb-1">Estatura</p>
+                <p className="font-medium">{patient.perfilClinico.estatura} cm</p>
+              </div>
+              {patient.perfilClinico.patologias.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-1">Patologias</p>
+                  <div className="flex flex-wrap gap-1">
+                    {patient.perfilClinico.patologias.map((p) => <Badge key={p} variant="yellow">{p}</Badge>)}
+                  </div>
+                </div>
+              )}
+              {patient.perfilClinico.sintomas.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-1">Sintomas</p>
+                  <div className="flex flex-wrap gap-1">
+                    {patient.perfilClinico.sintomas.map((s) => <Badge key={s} variant="red">{s}</Badge>)}
+                  </div>
+                </div>
+              )}
+              {patient.perfilClinico.examenesLaboratorio.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-1">Examenes de Laboratorio</p>
+                  <div className="flex flex-wrap gap-1">
+                    {patient.perfilClinico.examenesLaboratorio.map((e) => <Badge key={e} variant="blue">{e}</Badge>)}
+                  </div>
+                </div>
+              )}
+              {patient.perfilClinico.vicios.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-1">Vicios</p>
+                  <div className="flex flex-wrap gap-1">
+                    {patient.perfilClinico.vicios.map((v) => <Badge key={v} variant="red">{v}</Badge>)}
+                  </div>
+                </div>
+              )}
+              {patient.perfilClinico.alimentosNoTolerables.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-1">Alimentos No Tolerables</p>
+                  <div className="flex flex-wrap gap-1">
+                    {patient.perfilClinico.alimentosNoTolerables.map((a) => <Badge key={a} variant="gray">{a}</Badge>)}
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -244,42 +325,12 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      {activeTab === 'Antropometría' && (
-        <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Historial Antropométrico</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-2 px-3 font-medium text-gray-500">Fecha</th>
-                  <th className="text-right py-2 px-3 font-medium text-gray-500">Peso (kg)</th>
-                  <th className="text-right py-2 px-3 font-medium text-gray-500">IMC</th>
-                  <th className="text-right py-2 px-3 font-medium text-gray-500">Cintura (cm)</th>
-                  <th className="text-right py-2 px-3 font-medium text-gray-500">Cadera (cm)</th>
-                  <th className="text-right py-2 px-3 font-medium text-gray-500">% Grasa</th>
-                  <th className="text-right py-2 px-3 font-medium text-gray-500">% Músculo</th>
-                  <th className="text-left py-2 px-3 font-medium text-gray-500">Notas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {patientAnthropometry.map((a) => (
-                  <tr key={a.id} className="border-b border-gray-50">
-                    <td className="py-2 px-3">{formatDate(a.fecha)}</td>
-                    <td className="py-2 px-3 text-right font-medium">{a.peso}</td>
-                    <td className="py-2 px-3 text-right">
-                      <span style={{ color: getIMCClassification(a.imc).color }} className="font-medium">{a.imc}</span>
-                    </td>
-                    <td className="py-2 px-3 text-right">{a.circunferenciaCintura}</td>
-                    <td className="py-2 px-3 text-right">{a.circunferenciaCadera}</td>
-                    <td className="py-2 px-3 text-right">{a.porcentajeGrasa}%</td>
-                    <td className="py-2 px-3 text-right">{a.porcentajeMusculo}%</td>
-                    <td className="py-2 px-3 text-gray-500 text-xs">{a.notas}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+      {activeTab === 'Antropometria' && (
+        <MeasurementHistoryTable
+          data={patientAnthropometry}
+          genero={patient.genero}
+          edad={edad}
+        />
       )}
 
       {activeTab === 'Consultas' && (
@@ -296,7 +347,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                 </Link>
               </div>
               <p className="text-sm text-gray-500 mb-1"><strong>Motivo:</strong> {c.motivo}</p>
-              <p className="text-sm text-gray-600 mb-1"><strong>Diagnóstico:</strong> {c.diagnostico}</p>
+              <p className="text-sm text-gray-600 mb-1"><strong>Diagnostico:</strong> {c.diagnostico}</p>
               <p className="text-sm text-gray-500"><strong>Recomendaciones:</strong> {c.recomendaciones}</p>
             </Card>
           ))}
@@ -348,7 +399,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                   <span className="font-medium text-gray-900">{formatDate(plan.fecha)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="green">{plan.caloriasDiarias} kcal/día</Badge>
+                  <Badge variant="green">{plan.caloriasDiarias} kcal/dia</Badge>
                   <Button variant="ghost" size="sm" onClick={() => { setEditingPlan(plan); setShowPlanModal(true); }}><Pencil size={14} /></Button>
                   <Button variant="ghost" size="sm" onClick={() => handleDuplicatePlan(plan)}><Copy size={14} /></Button>
                   <Button variant="ghost" size="sm" onClick={() => handleDeletePlan(plan.id)}><Trash2 size={14} className="text-red-400" /></Button>
@@ -357,7 +408,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
               <p className="text-sm text-gray-600 mb-3"><strong>Objetivo:</strong> {plan.objetivo}</p>
               <div className="grid grid-cols-3 gap-3 mb-3">
                 <div className="bg-blue-50 rounded-lg p-2 text-center">
-                  <p className="text-xs text-blue-600">Proteínas</p>
+                  <p className="text-xs text-blue-600">Proteinas</p>
                   <p className="font-bold text-blue-700">{plan.macros.proteinasGramos}g</p>
                   <p className="text-xs text-blue-500">{plan.macros.proteinasPorcentaje}%</p>
                 </div>
@@ -388,7 +439,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      {activeTab === 'Métricas' && (
+      {activeTab === 'Metricas' && (
         <div className="space-y-6">
           <Card>
             <div className="flex items-end gap-4">
@@ -404,7 +455,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           ) : (
             <div className="grid grid-cols-2 gap-6">
               <Card>
-                <h3 className="font-semibold text-gray-900 mb-4">Evolución de Peso (kg)</h3>
+                <h3 className="font-semibold text-gray-900 mb-4">Evolucion de Peso (kg)</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={weightData}>
@@ -437,9 +488,62 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </Card>
 
+              {/* Body composition chart */}
+              <Card>
+                <h3 className="font-semibold text-gray-900 mb-4">Composicion Corporal</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={bodyCompData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="grasa" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} name="% Grasa" />
+                      <Line type="monotone" dataKey="agua" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} name="% Agua" />
+                      <Line type="monotone" dataKey="musculo" stroke="#16A34A" strokeWidth={2} dot={{ r: 3 }} name="Musculo (kg)" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              {/* Visceral fat trend */}
+              <Card>
+                <h3 className="font-semibold text-gray-900 mb-4">Grasa Visceral</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={visceralData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} domain={[0, 30]} />
+                      <Tooltip />
+                      <ReferenceLine y={12} stroke="#16A34A" strokeDasharray="3 3" label={{ value: 'Limite saludable (12)', position: 'top', fontSize: 10 }} />
+                      <Area type="monotone" dataKey="grasaVisceral" stroke="#DC2626" fill="#FEE2E2" strokeWidth={2} name="Grasa Visceral" dot={{ r: 4, fill: '#DC2626' }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              {/* Water % trend */}
+              <Card>
+                <h3 className="font-semibold text-gray-900 mb-4">% Agua Corporal</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={waterData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} domain={[35, 70]} />
+                      <Tooltip />
+                      <ReferenceLine y={patient.genero === 'F' ? 45 : 50} stroke="#3B82F6" strokeDasharray="3 3" label={{ value: 'Min', position: 'left', fontSize: 10 }} />
+                      <ReferenceLine y={patient.genero === 'F' ? 60 : 65} stroke="#3B82F6" strokeDasharray="3 3" label={{ value: 'Max', position: 'left', fontSize: 10 }} />
+                      <Area type="monotone" dataKey="agua" stroke="#3B82F6" fill="#DBEAFE" strokeWidth={2} name="% Agua" dot={{ r: 4, fill: '#3B82F6' }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
               {caloriesData.length > 0 && (
-                <Card className="col-span-2">
-                  <h3 className="font-semibold text-gray-900 mb-4">Calorías por Plan (kcal)</h3>
+                <Card>
+                  <h3 className="font-semibold text-gray-900 mb-4">Calorias por Plan (kcal)</h3>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={caloriesData}>
@@ -447,7 +551,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                         <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
                         <YAxis tick={{ fontSize: 12 }} />
                         <Tooltip />
-                        <Bar dataKey="proteinas" stackId="a" fill="#3B82F6" name="Proteínas (kcal)" />
+                        <Bar dataKey="proteinas" stackId="a" fill="#3B82F6" name="Proteinas (kcal)" />
                         <Bar dataKey="carbohidratos" stackId="a" fill="#F59E0B" name="Carbohidratos (kcal)" />
                         <Bar dataKey="grasas" stackId="a" fill="#EF4444" name="Grasas (kcal)" />
                       </BarChart>
