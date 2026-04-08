@@ -2,14 +2,14 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, User, Calendar, Stethoscope } from 'lucide-react';
+import { ArrowLeft, Calendar } from 'lucide-react';
 import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
+import TabNavigation from '@/components/ui/TabNavigation';
+import Spinner from '@/components/ui/Spinner';
 import MeasurementsTab from '@/components/consultation/MeasurementsTab';
 import ClinicalNotesTab from '@/components/consultation/ClinicalNotesTab';
-import { consultations } from '@/data/consultations';
-import { patients } from '@/data/patients';
-import { anthropometryData } from '@/data/anthropometry';
+import { useConsultation } from '@/hooks/useConsultations';
+import { usePatient } from '@/hooks/usePatients';
 import { formatDateLong, calculateAge } from '@/lib/utils';
 
 const tabNames = ['Mediciones', 'Notas Clinicas'];
@@ -18,7 +18,11 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const [activeTab, setActiveTab] = useState(0);
 
-  const consultation = consultations.find((c) => c.id === id);
+  const { consultation, anthropometry, isLoading } = useConsultation(id);
+  const { patient } = usePatient(consultation?.pacienteId ?? null);
+
+  if (isLoading) return <Spinner />;
+
   if (!consultation) {
     return (
       <div className="text-center py-12">
@@ -28,8 +32,6 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  const patient = patients.find((p) => p.id === consultation.pacienteId);
-  const anthropometry = anthropometryData.find((a) => a.id === consultation.antropometriaId);
   const talla = patient?.perfilClinico?.estatura || anthropometry?.talla || 0;
   const genero = patient?.genero || 'F';
   const edad = patient ? calculateAge(patient.fechaNacimiento) : 30;
@@ -108,21 +110,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Tab navigation */}
-      <div className="flex gap-1 border-b border-gray-200">
-        {tabNames.map((tab, i) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(i)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === i
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      <TabNavigation tabs={tabNames} activeTab={activeTab} onChange={setActiveTab} />
 
       {/* Tab content */}
       {activeTab === 0 && anthropometry && (

@@ -12,22 +12,25 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import DayPopover from '@/components/ui/DayPopover';
-import { appointments as initialAppointments } from '@/data/appointments';
-import { patients } from '@/data/patients';
-import { APPOINTMENT_TYPES } from '@/lib/constants';
+import Spinner from '@/components/ui/Spinner';
+import ErrorDisplay from '@/components/ui/ErrorDisplay';
+import { useAppointments, createAppointment } from '@/hooks/useAppointments';
+import { usePatients } from '@/hooks/usePatients';
+import { useToast } from '@/hooks/useToast';
+import { APPOINTMENT_TYPES, APPOINTMENT_STATUS } from '@/lib/constants';
 
 const DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
-const statusBadge = { programada: 'blue' as const, completada: 'green' as const, cancelada: 'red' as const };
-const statusLabel = { programada: 'Programada', completada: 'Completada', cancelada: 'Cancelada' };
 
 export default function CitasPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const { appointments: appointmentsList, isLoading, error, mutate } = useAppointments({ pageSize: 500 });
+  const { patients } = usePatients({ pageSize: 500 });
+
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
-  const [appointmentsList] = useState(initialAppointments);
 
   const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
   const [hoveredRect, setHoveredRect] = useState<DOMRect | null>(null);
@@ -47,7 +50,6 @@ export default function CitasPage() {
 
   const patientOptions = [
     { value: '', label: 'Seleccionar paciente...' },
-    { value: '__new__', label: '+ Nuevo paciente' },
     ...patients.map((p) => ({ value: p.id, label: `${p.nombre} ${p.apellido}` })),
   ];
 
@@ -59,11 +61,9 @@ export default function CitasPage() {
   ];
 
   const [newAppt, setNewAppt] = useState({ pacienteId: '', fecha: selectedDateStr, hora: '09:00', tipo: 'seguimiento', motivo: '', estado: 'programada', notas: '' });
-  const [newPatientName, setNewPatientName] = useState('');
+  const { toast, show: showToast } = useToast();
+  const [submitting, setSubmitting] = useState(false);
 
-  const [showSuccess, setShowSuccess] = useState(false);
-
-  // Handle incoming searchParams from CalendarPreview navigation
   useEffect(() => {
     const dateParam = searchParams.get('date');
     const actionParam = searchParams.get('action');
@@ -76,7 +76,6 @@ export default function CitasPage() {
         if (actionParam === 'new') {
           setShowModal(true);
         }
-        // Clean up URL params
         router.replace('/citas');
       } catch {
         // ignore invalid date
@@ -84,13 +83,28 @@ export default function CitasPage() {
     }
   }, [searchParams, router]);
 
-  const handleSaveAppointment = (e: React.FormEvent) => {
+  const handleSaveAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowModal(false);
-    setNewPatientName('');
-    setNewAppt((prev) => ({ ...prev, pacienteId: '' }));
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
+    setSubmitting(true);
+    try {
+      await createAppointment({
+        pacienteId: newAppt.pacienteId,
+        fecha: newAppt.fecha,
+        hora: newAppt.hora,
+        tipo: newAppt.tipo as 'primera_vez' | 'seguimiento' | 'control' | 'emergencia',
+        motivo: newAppt.motivo,
+        estado: newAppt.estado as 'programada' | 'completada' | 'cancelada',
+        notas: newAppt.notas,
+      });
+      mutate();
+      setShowModal(false);
+      setNewAppt({ pacienteId: '', fecha: selectedDateStr, hora: '09:00', tipo: 'seguimiento', motivo: '', estado: 'programada', notas: '' });
+      showToast('Cita guardada exitosamente.');
+    } catch {
+      showToast('Error al guardar cita.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleMouseEnter = useCallback((day: Date, e: React.MouseEvent<HTMLButtonElement>) => {
@@ -128,6 +142,9 @@ export default function CitasPage() {
     setSelectedDate(date);
   }, []);
 
+  if (isLoading) return <Spinner />;
+  if (error) return <ErrorDisplay message="No se pudieron cargar las citas." onRetry={() => mutate()} />;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -140,9 +157,9 @@ export default function CitasPage() {
         </Button>
       </div>
 
-      {showSuccess && (
-        <div className="bg-green-50 text-green-700 rounded-lg px-4 py-3 text-sm font-medium">
-          Cita guardada exitosamente (demo).
+      {toast && (
+        <div className={`rounded-lg px-4 py-3 text-sm font-medium ${toast.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+          {toast.message}
         </div>
       )}
 
@@ -154,10 +171,10 @@ export default function CitasPage() {
               {format(currentMonth, 'MMMM yyyy', { locale: es })}
             </h3>
             <div className="flex gap-1">
-              <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-1 rounded hover:bg-gray-100">
+              <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-1 rounded hover:bg-gray-100" aria-label="Mes anterior">
                 <ChevronLeft size={18} />
               </button>
-              <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-1 rounded hover:bg-gray-100">
+              <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-1 rounded hover:bg-gray-100" aria-label="Mes siguiente">
                 <ChevronRight size={18} />
               </button>
             </div>
@@ -197,7 +214,7 @@ export default function CitasPage() {
                         <div
                           key={a.id}
                           className={`w-1.5 h-1.5 rounded-full ${
-                            a.estado === 'completada' ? 'bg-green-500' : a.estado === 'cancelada' ? 'bg-red-500' : isSelected ? 'bg-white' : 'bg-blue-500'
+                            isSelected && a.estado === 'programada' ? 'bg-white' : APPOINTMENT_STATUS[a.estado].dot
                           }`}
                         />
                       ))}
@@ -212,6 +229,7 @@ export default function CitasPage() {
             <DayPopover
               date={hoveredDate}
               anchorRect={hoveredRect}
+              appointments={appointmentsList.filter((a) => a.fecha === format(hoveredDate, 'yyyy-MM-dd'))}
               mode="hover"
               onClose={() => {}}
               onNewAppointment={handleNewAppointment}
@@ -223,6 +241,7 @@ export default function CitasPage() {
             <DayPopover
               date={clickedDate}
               anchorRect={clickedRect}
+              appointments={appointmentsList.filter((a) => a.fecha === format(clickedDate, 'yyyy-MM-dd'))}
               mode="click"
               onClose={handleCloseClick}
               onNewAppointment={handleNewAppointment}
@@ -241,39 +260,33 @@ export default function CitasPage() {
             <p className="text-sm text-gray-500 py-8 text-center">No hay citas para este día.</p>
           ) : (
             <div className="space-y-3">
-              {dayAppointments.map((apt) => {
-                const patient = patients.find((p) => p.id === apt.pacienteId);
-                return (
-                  <div key={apt.id} className="flex items-start gap-4 p-4 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
-                    <div className="flex items-center gap-1.5 text-sm text-gray-500 min-w-[60px]">
-                      <Clock size={14} />
-                      <span className="font-medium">{apt.hora}</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-gray-900">
-                          {patient ? `${patient.nombre} ${patient.apellido}` : 'Paciente'}
-                        </p>
-                        <Badge variant={statusBadge[apt.estado]}>{statusLabel[apt.estado]}</Badge>
-                      </div>
-                      <p className="text-sm text-gray-500 mt-0.5">{APPOINTMENT_TYPES[apt.tipo]} · {apt.motivo}</p>
-                      {apt.notas && <p className="text-xs text-gray-400 mt-1">{apt.notas}</p>}
-                    </div>
+              {dayAppointments.map((apt) => (
+                <div key={apt.id} className="flex items-start gap-4 p-4 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
+                  <div className="flex items-center gap-1.5 text-sm text-gray-500 min-w-[60px]">
+                    <Clock size={14} />
+                    <span className="font-medium">{apt.hora}</span>
                   </div>
-                );
-              })}
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium text-gray-900">
+                        {apt.patient ? `${apt.patient.nombre} ${apt.patient.apellido}` : 'Paciente'}
+                      </p>
+                      <Badge variant={APPOINTMENT_STATUS[apt.estado].badge}>{APPOINTMENT_STATUS[apt.estado].label}</Badge>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-0.5">{APPOINTMENT_TYPES[apt.tipo]} · {apt.motivo}</p>
+                    {apt.notas && <p className="text-xs text-gray-400 mt-1">{apt.notas}</p>}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Card>
       </div>
 
       {/* New appointment modal */}
-      <Modal isOpen={showModal} onClose={() => { setShowModal(false); setNewPatientName(''); }} title="Nueva Cita">
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Nueva Cita">
         <form onSubmit={handleSaveAppointment} className="space-y-4">
-          <Select id="appt-patient" label="Paciente" options={patientOptions} value={newAppt.pacienteId} onChange={(e) => { setNewAppt({ ...newAppt, pacienteId: e.target.value }); if (e.target.value !== '__new__') setNewPatientName(''); }} required={newAppt.pacienteId !== '__new__'} />
-          {newAppt.pacienteId === '__new__' && (
-            <Input id="appt-new-patient" label="Nombre completo del paciente" value={newPatientName} onChange={(e) => setNewPatientName(e.target.value)} required placeholder="Ej: Juan Pérez García" />
-          )}
+          <Select id="appt-patient" label="Paciente" options={patientOptions} value={newAppt.pacienteId} onChange={(e) => setNewAppt({ ...newAppt, pacienteId: e.target.value })} required />
           <div className="grid grid-cols-2 gap-4">
             <Input id="appt-date" label="Fecha" type="date" value={newAppt.fecha} onChange={(e) => setNewAppt({ ...newAppt, fecha: e.target.value })} required />
             <Input id="appt-time" label="Hora" type="time" value={newAppt.hora} onChange={(e) => setNewAppt({ ...newAppt, hora: e.target.value })} required />
@@ -294,7 +307,7 @@ export default function CitasPage() {
           </div>
           <div className="flex gap-3 justify-end pt-2">
             <Button type="button" variant="ghost" onClick={() => setShowModal(false)}>Cancelar</Button>
-            <Button type="submit">Guardar Cita</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : 'Guardar Cita'}</Button>
           </div>
         </form>
       </Modal>

@@ -9,17 +9,20 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
+import TabNavigation from '@/components/ui/TabNavigation';
+import Spinner from '@/components/ui/Spinner';
 import NutritionalPlanForm from '@/components/patients/NutritionalPlanForm';
 import PatientReport from '@/components/patients/PatientReport';
 import MeasurementHistoryTable from '@/components/consultation/MeasurementHistoryTable';
-import { patients } from '@/data/patients';
-import { appointments } from '@/data/appointments';
-import { consultations } from '@/data/consultations';
-import { anthropometryData } from '@/data/anthropometry';
-import { nutritionalPlans } from '@/data/nutritionalPlans';
-import { NutritionalPlan } from '@/data/types';
+import { usePatient } from '@/hooks/usePatients';
+import { usePatientAppointments } from '@/hooks/useAppointments';
+import { usePatientConsultations } from '@/hooks/useConsultations';
+import { usePatientAnthropometry } from '@/hooks/useAnthropometry';
+import { usePatientPlans, createStandalonePlan, updatePlan, deletePlan, duplicatePlan } from '@/hooks/useNutritionalPlans';
+import { useToast } from '@/hooks/useToast';
+import { NutritionalPlan } from '@/types/api';
 import { calculateAge, formatDate, getInitials } from '@/lib/utils';
-import { ACTIVITY_LEVELS, APPOINTMENT_TYPES } from '@/lib/constants';
+import { ACTIVITY_LEVELS, APPOINTMENT_TYPES, APPOINTMENT_STATUS } from '@/lib/constants';
 import { getIMCClassification } from '@/lib/calculations';
 import { classifyBodyFat, classifyVisceralFat, classifyWaterPercentage } from '@/lib/referenceRanges';
 
@@ -28,15 +31,62 @@ const tabs = ['General', 'Antropometria', 'Consultas', 'Citas', 'Planes Nutricio
 export default function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [activeTab, setActiveTab] = useState('General');
-  const [dateFrom, setDateFrom] = useState('2025-01-01');
-  const [dateTo, setDateTo] = useState('2026-12-31');
-  const [plansList, setPlansList] = useState<NutritionalPlan[]>(nutritionalPlans);
+  const [dateFrom, setDateFrom] = useState(() => `${new Date().getFullYear() - 1}-01-01`);
+  const [dateTo, setDateTo] = useState(() => `${new Date().getFullYear() + 1}-12-31`);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<NutritionalPlan | undefined>(undefined);
-  const [showPlanSuccess, setShowPlanSuccess] = useState('');
+  const { toast, show: showToast } = useToast();
   const [showReport, setShowReport] = useState(false);
 
-  const patient = patients.find((p) => p.id === id);
+  const { patient, isLoading: patientLoading } = usePatient(id);
+  const { appointments: patientAppointments } = usePatientAppointments(id);
+  const { consultations: patientConsultations } = usePatientConsultations(id);
+  const { anthropometry: patientAnthropometry } = usePatientAnthropometry(id);
+  const { plans, mutate: mutatePlans } = usePatientPlans(id);
+
+  const sortedAnthro = useMemo(
+    () => [...patientAnthropometry].sort((a, b) => a.fecha.localeCompare(b.fecha)),
+    [patientAnthropometry]
+  );
+  const sortedConsultations = useMemo(
+    () => [...patientConsultations].sort((a, b) => b.fecha.localeCompare(a.fecha)),
+    [patientConsultations]
+  );
+  const sortedAppointments = useMemo(
+    () => [...patientAppointments].sort((a, b) => b.fecha.localeCompare(a.fecha)),
+    [patientAppointments]
+  );
+  const patientPlans = useMemo(
+    () => [...plans].sort((a, b) => b.fecha.localeCompare(a.fecha)),
+    [plans]
+  );
+
+  const chartData = useMemo(() => {
+    const filtered = sortedAnthro.filter((a) => a.fecha >= dateFrom && a.fecha <= dateTo);
+    return {
+      weight: filtered.map((a) => ({ fecha: formatDate(a.fecha, 'dd/MM/yy'), peso: a.peso })),
+      bmi: filtered.map((a) => ({ fecha: formatDate(a.fecha, 'dd/MM/yy'), imc: a.imc })),
+      bodyComp: filtered.map((a) => ({ fecha: formatDate(a.fecha, 'dd/MM/yy'), grasa: a.porcentajeGrasa, agua: a.porcentajeAgua, musculo: a.masaMusculo })),
+      visceral: filtered.map((a) => ({ fecha: formatDate(a.fecha, 'dd/MM/yy'), grasaVisceral: a.grasaVisceral })),
+      water: filtered.map((a) => ({ fecha: formatDate(a.fecha, 'dd/MM/yy'), agua: a.porcentajeAgua })),
+    };
+  }, [sortedAnthro, dateFrom, dateTo]);
+
+  const caloriesData = useMemo(() => {
+    const filteredPlans = plans
+      .filter((p) => p.fecha >= dateFrom && p.fecha <= dateTo)
+      .sort((a, b) => a.fecha.localeCompare(b.fecha));
+    return filteredPlans.map((p) => ({
+      fecha: formatDate(p.fecha, 'dd/MM/yy'),
+      calorias: p.caloriasDiarias,
+      proteinas: p.macros.proteinasGramos * 4,
+      carbohidratos: p.macros.carbohidratosGramos * 4,
+      grasas: p.macros.grasasGramos * 9,
+    }));
+  }, [plans, dateFrom, dateTo]);
+
+  if (patientLoading) return <Spinner />;
+
   if (!patient) {
     return (
       <div className="text-center py-12">
@@ -47,88 +97,44 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const edad = calculateAge(patient.fechaNacimiento);
-  const patientAnthropometry = anthropometryData.filter((a) => a.pacienteId === id).sort((a, b) => a.fecha.localeCompare(b.fecha));
-  const patientConsultations = consultations.filter((c) => c.pacienteId === id).sort((a, b) => b.fecha.localeCompare(a.fecha));
-  const patientAppointments = appointments.filter((a) => a.pacienteId === id).sort((a, b) => b.fecha.localeCompare(a.fecha));
-  const patientPlans = plansList.filter((p) => p.pacienteId === id).sort((a, b) => b.fecha.localeCompare(a.fecha));
-  const latestAnthro = patientAnthropometry[patientAnthropometry.length - 1];
+  const latestAnthro = sortedAnthro[sortedAnthro.length - 1];
 
-  const filteredAnthro = useMemo(() => {
-    return patientAnthropometry.filter((a) => a.fecha >= dateFrom && a.fecha <= dateTo);
-  }, [patientAnthropometry, dateFrom, dateTo]);
-
-  const weightData = filteredAnthro.map((a) => ({
-    fecha: formatDate(a.fecha, 'dd/MM/yy'),
-    peso: a.peso,
-  }));
-
-  const bmiData = filteredAnthro.map((a) => ({
-    fecha: formatDate(a.fecha, 'dd/MM/yy'),
-    imc: a.imc,
-  }));
-
-  const bodyCompData = filteredAnthro.map((a) => ({
-    fecha: formatDate(a.fecha, 'dd/MM/yy'),
-    grasa: a.porcentajeGrasa,
-    agua: a.porcentajeAgua,
-    musculo: a.masaMusculo,
-  }));
-
-  const visceralData = filteredAnthro.map((a) => ({
-    fecha: formatDate(a.fecha, 'dd/MM/yy'),
-    grasaVisceral: a.grasaVisceral,
-  }));
-
-  const waterData = filteredAnthro.map((a) => ({
-    fecha: formatDate(a.fecha, 'dd/MM/yy'),
-    agua: a.porcentajeAgua,
-  }));
-
-  const filteredPlans = plansList
-    .filter((p) => p.pacienteId === id && p.fecha >= dateFrom && p.fecha <= dateTo)
-    .sort((a, b) => a.fecha.localeCompare(b.fecha));
-
-  const caloriesData = filteredPlans.map((p) => ({
-    fecha: formatDate(p.fecha, 'dd/MM/yy'),
-    calorias: p.caloriasDiarias,
-    proteinas: p.macros.proteinasGramos * 4,
-    carbohidratos: p.macros.carbohidratosGramos * 4,
-    grasas: p.macros.grasasGramos * 9,
-  }));
-
-  const handleSavePlan = (plan: NutritionalPlan) => {
-    if (editingPlan) {
-      setPlansList(prev => prev.map(p => p.id === plan.id ? plan : p));
-      setShowPlanSuccess('Plan nutricional actualizado exitosamente.');
-    } else {
-      setPlansList(prev => [...prev, plan]);
-      setShowPlanSuccess('Plan nutricional creado exitosamente.');
-    }
-    setShowPlanModal(false);
-    setEditingPlan(undefined);
-    setTimeout(() => setShowPlanSuccess(''), 3000);
-  };
-
-  const handleDeletePlan = (planId: string) => {
-    if (window.confirm('Esta seguro de eliminar este plan nutricional?')) {
-      setPlansList(prev => prev.filter(p => p.id !== planId));
-      setShowPlanSuccess('Plan nutricional eliminado.');
-      setTimeout(() => setShowPlanSuccess(''), 3000);
+  const handleSavePlan = async (plan: NutritionalPlan) => {
+    try {
+      if (editingPlan) {
+        await updatePlan(plan.id, { ...plan });
+        showToast('Plan nutricional actualizado exitosamente.');
+      } else {
+        await createStandalonePlan({ ...plan, pacienteId: id } as Record<string, unknown>);
+        showToast('Plan nutricional creado exitosamente.');
+      }
+      mutatePlans();
+      setShowPlanModal(false);
+      setEditingPlan(undefined);
+    } catch {
+      showToast('Error al guardar plan.', 'error');
     }
   };
 
-  const handleDuplicatePlan = (plan: NutritionalPlan) => {
-    const duplicated: NutritionalPlan = {
-      ...plan,
-      id: 'np' + Date.now(),
-      fecha: new Date().toISOString().split('T')[0],
-      comidas: plan.comidas.map(c => ({ ...c })),
-      restricciones: [...plan.restricciones],
-      suplementos: [...plan.suplementos],
-    };
-    setPlansList(prev => [...prev, duplicated]);
-    setShowPlanSuccess('Plan nutricional duplicado exitosamente.');
-    setTimeout(() => setShowPlanSuccess(''), 3000);
+  const handleDeletePlan = async (planId: string) => {
+    if (!window.confirm('Esta seguro de eliminar este plan nutricional?')) return;
+    try {
+      await deletePlan(planId);
+      mutatePlans();
+      showToast('Plan nutricional eliminado.');
+    } catch {
+      showToast('Error al eliminar plan.', 'error');
+    }
+  };
+
+  const handleDuplicatePlan = async (planId: string) => {
+    try {
+      await duplicatePlan(planId);
+      mutatePlans();
+      showToast('Plan nutricional duplicado exitosamente.');
+    } catch {
+      showToast('Error al duplicar plan.', 'error');
+    }
   };
 
   return (
@@ -190,21 +196,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
       )}
 
       {/* Tab navigation */}
-      <div className="flex gap-1 border-b border-gray-200">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === tab
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      <TabNavigation tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       {/* Tab content */}
       {activeTab === 'General' && (
@@ -327,7 +319,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
       {activeTab === 'Antropometria' && (
         <MeasurementHistoryTable
-          data={patientAnthropometry}
+          data={sortedAnthro}
           genero={patient.genero}
           edad={edad}
         />
@@ -335,7 +327,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
       {activeTab === 'Consultas' && (
         <div className="space-y-4">
-          {patientConsultations.map((c) => (
+          {sortedConsultations.map((c) => (
             <Card key={c.id}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -351,7 +343,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
               <p className="text-sm text-gray-500"><strong>Recomendaciones:</strong> {c.recomendaciones}</p>
             </Card>
           ))}
-          {patientConsultations.length === 0 && (
+          {sortedConsultations.length === 0 && (
             <p className="text-center text-gray-500 py-8">Sin consultas registradas.</p>
           )}
         </div>
@@ -359,7 +351,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
       {activeTab === 'Citas' && (
         <div className="space-y-3">
-          {patientAppointments.map((a) => (
+          {sortedAppointments.map((a) => (
             <Card key={a.id} className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Calendar size={16} className="text-gray-400" />
@@ -368,12 +360,10 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                   <p className="text-xs text-gray-500">{APPOINTMENT_TYPES[a.tipo]} · {a.motivo}</p>
                 </div>
               </div>
-              <Badge variant={a.estado === 'completada' ? 'green' : a.estado === 'cancelada' ? 'red' : 'blue'}>
-                {a.estado === 'completada' ? 'Completada' : a.estado === 'cancelada' ? 'Cancelada' : 'Programada'}
-              </Badge>
+              <Badge variant={APPOINTMENT_STATUS[a.estado].badge}>{APPOINTMENT_STATUS[a.estado].label}</Badge>
             </Card>
           ))}
-          {patientAppointments.length === 0 && (
+          {sortedAppointments.length === 0 && (
             <p className="text-center text-gray-500 py-8">Sin citas registradas.</p>
           )}
         </div>
@@ -381,9 +371,9 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
       {activeTab === 'Planes Nutricionales' && (
         <div className="space-y-4">
-          {showPlanSuccess && (
-            <div className="bg-green-50 text-green-700 rounded-lg px-4 py-3 text-sm font-medium">
-              {showPlanSuccess}
+          {toast && (
+            <div className={`rounded-lg px-4 py-3 text-sm font-medium ${toast.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+              {toast.message}
             </div>
           )}
           <div className="flex justify-end">
@@ -401,7 +391,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                 <div className="flex items-center gap-2">
                   <Badge variant="green">{plan.caloriasDiarias} kcal/dia</Badge>
                   <Button variant="ghost" size="sm" onClick={() => { setEditingPlan(plan); setShowPlanModal(true); }}><Pencil size={14} /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDuplicatePlan(plan)}><Copy size={14} /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleDuplicatePlan(plan.id)}><Copy size={14} /></Button>
                   <Button variant="ghost" size="sm" onClick={() => handleDeletePlan(plan.id)}><Trash2 size={14} className="text-red-400" /></Button>
                 </div>
               </div>
@@ -448,7 +438,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </Card>
 
-          {filteredAnthro.length === 0 ? (
+          {chartData.weight.length === 0 ? (
             <Card>
               <p className="text-center text-gray-500 py-12">No hay datos para el rango de fechas seleccionado.</p>
             </Card>
@@ -458,7 +448,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                 <h3 className="font-semibold text-gray-900 mb-4">Evolucion de Peso (kg)</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={weightData}>
+                    <LineChart data={chartData.weight}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} domain={['dataMin - 2', 'dataMax + 2']} />
@@ -473,7 +463,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                 <h3 className="font-semibold text-gray-900 mb-4">Tendencia de IMC</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={bmiData}>
+                    <AreaChart data={chartData.bmi}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} domain={[15, 45]} />
@@ -488,12 +478,11 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </Card>
 
-              {/* Body composition chart */}
               <Card>
                 <h3 className="font-semibold text-gray-900 mb-4">Composicion Corporal</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={bodyCompData}>
+                    <LineChart data={chartData.bodyComp}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} />
@@ -506,12 +495,11 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </Card>
 
-              {/* Visceral fat trend */}
               <Card>
                 <h3 className="font-semibold text-gray-900 mb-4">Grasa Visceral</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={visceralData}>
+                    <AreaChart data={chartData.visceral}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} domain={[0, 30]} />
@@ -523,12 +511,11 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </Card>
 
-              {/* Water % trend */}
               <Card>
                 <h3 className="font-semibold text-gray-900 mb-4">% Agua Corporal</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={waterData}>
+                    <AreaChart data={chartData.water}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} domain={[35, 70]} />
@@ -578,9 +565,9 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
       <Modal isOpen={showReport} onClose={() => setShowReport(false)} title="Reporte del Paciente" size="xl">
         <PatientReport
           patient={patient}
-          anthropometry={patientAnthropometry}
+          anthropometry={sortedAnthro}
           plans={patientPlans}
-          consultations={patientConsultations}
+          consultations={sortedConsultations}
         />
       </Modal>
     </div>

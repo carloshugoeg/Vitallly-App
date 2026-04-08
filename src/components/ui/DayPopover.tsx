@@ -4,28 +4,21 @@ import { useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Plus, Eye } from 'lucide-react';
-import { appointments } from '@/data/appointments';
-import { patients } from '@/data/patients';
+import { Appointment } from '@/types/api';
+import { APPOINTMENT_STATUS } from '@/lib/constants';
 
 interface DayPopoverProps {
   date: Date;
   anchorRect: DOMRect | null;
+  appointments: Appointment[];
   mode: 'hover' | 'click';
   onClose: () => void;
   onNewAppointment: (date: Date) => void;
   onViewAppointments: (date: Date) => void;
 }
 
-const statusColor: Record<string, string> = {
-  programada: 'bg-blue-500',
-  completada: 'bg-green-500',
-  cancelada: 'bg-red-500',
-};
-
-export default function DayPopover({ date, anchorRect, mode, onClose, onNewAppointment, onViewAppointments }: DayPopoverProps) {
+export default function DayPopover({ date, anchorRect, appointments, mode, onClose, onNewAppointment, onViewAppointments }: DayPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const dateStr = format(date, 'yyyy-MM-dd');
-  const dayAppts = appointments.filter((a) => a.fecha === dateStr);
 
   useEffect(() => {
     if (mode !== 'click') return;
@@ -58,24 +51,21 @@ export default function DayPopover({ date, anchorRect, mode, onClose, onNewAppoi
         <p className="text-xs font-semibold text-gray-700 mb-2 capitalize">
           {format(date, "EEEE d 'de' MMM", { locale: es })}
         </p>
-        {dayAppts.length === 0 ? (
+        {appointments.length === 0 ? (
           <p className="text-xs text-gray-400">Sin citas programadas</p>
         ) : (
           <ul className="space-y-1.5">
-            {dayAppts.slice(0, 4).map((a) => {
-              const patient = patients.find((p) => p.id === a.pacienteId);
-              return (
-                <li key={a.id} className="flex items-center gap-2 text-xs">
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusColor[a.estado]}`} />
-                  <span className="text-gray-500 font-medium">{a.hora}</span>
-                  <span className="text-gray-700 truncate">
-                    {patient ? `${patient.nombre} ${patient.apellido}` : 'Paciente'}
-                  </span>
-                </li>
-              );
-            })}
-            {dayAppts.length > 4 && (
-              <li className="text-xs text-gray-400">+{dayAppts.length - 4} más</li>
+            {appointments.slice(0, 4).map((a) => (
+              <li key={a.id} className="flex items-center gap-2 text-xs">
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${APPOINTMENT_STATUS[a.estado].dot}`} />
+                <span className="text-gray-500 font-medium">{a.hora}</span>
+                <span className="text-gray-700 truncate">
+                  {a.patient ? `${a.patient.nombre} ${a.patient.apellido}` : 'Paciente'}
+                </span>
+              </li>
+            ))}
+            {appointments.length > 4 && (
+              <li className="text-xs text-gray-400">+{appointments.length - 4} más</li>
             )}
           </ul>
         )}

@@ -1,7 +1,7 @@
 'use client';
 
 import Card from '@/components/ui/Card';
-import { Anthropometry } from '@/data/types';
+import { Anthropometry } from '@/types/api';
 import { formatDate } from '@/lib/utils';
 import { getIMCClassification } from '@/lib/calculations';
 import {

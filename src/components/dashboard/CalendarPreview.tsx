@@ -7,11 +7,16 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import DayPopover from '@/components/ui/DayPopover';
-import { appointments } from '@/data/appointments';
+import { Appointment } from '@/types/api';
+import { APPOINTMENT_STATUS } from '@/lib/constants';
 
 const DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
 
-export default function CalendarPreview() {
+interface CalendarPreviewProps {
+  appointments: Appointment[];
+}
+
+export default function CalendarPreview({ appointments }: CalendarPreviewProps) {
   const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
@@ -110,11 +115,7 @@ export default function CalendarPreview() {
                     <div
                       key={a.id}
                       className={`w-1 h-1 rounded-full ${
-                        a.estado === 'completada'
-                          ? 'bg-green-500'
-                          : a.estado === 'cancelada'
-                          ? 'bg-red-500'
-                          : isToday ? 'bg-white' : 'bg-blue-500'
+                        isToday && a.estado === 'programada' ? 'bg-white' : APPOINTMENT_STATUS[a.estado].dot
                       }`}
                     />
                   ))}
@@ -129,6 +130,7 @@ export default function CalendarPreview() {
         <DayPopover
           date={hoveredDate}
           anchorRect={hoveredRect}
+          appointments={appointments.filter((a) => a.fecha === format(hoveredDate, 'yyyy-MM-dd'))}
           mode="hover"
           onClose={() => {}}
           onNewAppointment={handleNewAppointment}
@@ -140,6 +142,7 @@ export default function CalendarPreview() {
         <DayPopover
           date={clickedDate}
           anchorRect={clickedRect}
+          appointments={appointments.filter((a) => a.fecha === format(clickedDate, 'yyyy-MM-dd'))}
           mode="click"
           onClose={handleCloseClick}
           onNewAppointment={handleNewAppointment}

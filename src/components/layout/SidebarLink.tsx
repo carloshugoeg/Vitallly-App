@@ -18,6 +18,7 @@ export default function SidebarLink({ href, icon: Icon, label }: SidebarLinkProp
   return (
     <Link
       href={href}
+      aria-current={isActive ? 'page' : undefined}
       className={cn(
         'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
         isActive

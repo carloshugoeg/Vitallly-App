@@ -2,16 +2,11 @@
 
 import { LayoutDashboard, Users, CalendarDays, ClipboardList, Calculator, LogOut } from 'lucide-react';
 import SidebarLink from './SidebarLink';
-import { useAuth } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 
 export default function Sidebar() {
-  const { logout } = useAuth();
-  const router = useRouter();
-
   const handleLogout = () => {
-    logout();
-    router.push('/login');
+    signOut({ callbackUrl: '/login' });
   };
 
   return (
@@ -21,7 +16,7 @@ export default function Sidebar() {
         <p className="text-white/50 text-xs mt-1">Clínica de Nutrición</p>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1">
+      <nav className="flex-1 px-3 space-y-1" aria-label="Navegación principal">
         <p className="text-white/40 text-[11px] font-semibold uppercase tracking-wider px-4 mb-2">
           Menú
         </p>

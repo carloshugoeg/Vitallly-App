@@ -2,7 +2,7 @@
 
 import NutritionalPlanForm from '@/components/patients/NutritionalPlanForm';
 import Card from '@/components/ui/Card';
-import { NutritionalPlan } from '@/data/types';
+import { NutritionalPlan } from '@/types/api';
 
 interface NutritionalPlanTabProps {
   pacienteId: string;

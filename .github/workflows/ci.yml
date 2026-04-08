@@ -1,0 +1,41 @@
+# Pipeline de integracion continua.
+# Se ejecuta en cada push/PR a main para validar calidad del codigo antes de merge.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-typecheck-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      # Prisma Client se genera antes de lint/typecheck porque el codigo importa tipos de @prisma/client
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type Check
+        run: npx tsc --noEmit
+
+      # Variables ficticias para que Next.js compile sin conexion real a la base de datos
+      - name: Build
+        run: npm run build
+        env:
+          DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+          NEXTAUTH_SECRET: "ci-secret"
+          NEXTAUTH_URL: "http://localhost:3000"

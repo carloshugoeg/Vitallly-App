@@ -1,8 +1,9 @@
 'use client';
 
+import { useMemo } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
 import Button from '@/components/ui/Button';
-import { Patient, Anthropometry, NutritionalPlan, Consultation } from '@/data/types';
+import { Patient, Anthropometry, NutritionalPlan, Consultation } from '@/types/api';
 import { calculateAge, formatDate, formatDateLong } from '@/lib/utils';
 import { getIMCClassification } from '@/lib/calculations';
 import { classifyBodyFat, classifyVisceralFat, classifyWaterPercentage } from '@/lib/referenceRanges';
@@ -16,21 +17,20 @@ interface PatientReportProps {
 }
 
 export default function PatientReport({ patient, anthropometry, plans, consultations }: PatientReportProps) {
-  const sortedAnthro = [...anthropometry].sort((a, b) => a.fecha.localeCompare(b.fecha));
-  const latest = sortedAnthro[sortedAnthro.length - 1];
-  const first = sortedAnthro[0];
-  const latestPlan = [...plans].sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
   const edad = calculateAge(patient.fechaNacimiento);
 
-  const weightData = sortedAnthro.map((a) => ({
-    fecha: formatDate(a.fecha, 'dd/MM/yy'),
-    peso: a.peso,
-  }));
-
-  const bmiData = sortedAnthro.map((a) => ({
-    fecha: formatDate(a.fecha, 'dd/MM/yy'),
-    imc: a.imc,
-  }));
+  const { sortedAnthro, latest, first, latestPlan, weightData, bmiData } = useMemo(() => {
+    const sorted = [...anthropometry].sort((a, b) => a.fecha.localeCompare(b.fecha));
+    const sortedPlans = [...plans].sort((a, b) => b.fecha.localeCompare(a.fecha));
+    return {
+      sortedAnthro: sorted,
+      latest: sorted[sorted.length - 1],
+      first: sorted[0],
+      latestPlan: sortedPlans[0],
+      weightData: sorted.map((a) => ({ fecha: formatDate(a.fecha, 'dd/MM/yy'), peso: a.peso })),
+      bmiData: sorted.map((a) => ({ fecha: formatDate(a.fecha, 'dd/MM/yy'), imc: a.imc })),
+    };
+  }, [anthropometry, plans]);
 
   const handlePrint = () => window.print();
 
