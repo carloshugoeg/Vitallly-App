@@ -1,25 +1,40 @@
 'use client';
 
 import { useState } from 'react';
+import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    if (username === 'admin' && password === 'admin') {
-      localStorage.setItem('vitally_auth', 'true');
-      router.push('/dashboard');
-    } else {
-      setError('Usuario o contraseña incorrectos');
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('Correo o contraseña incorrectos');
+      } else {
+        router.push('/dashboard');
+        router.refresh();
+      }
+    } catch {
+      setError('Error al iniciar sesión. Intente de nuevo.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -33,11 +48,12 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            id="username"
-            label="Usuario"
-            placeholder="Ingresa tu usuario"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            id="email"
+            label="Correo electrónico"
+            type="email"
+            placeholder="correo@ejemplo.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
           <Input
             id="password"
@@ -52,14 +68,10 @@ export default function LoginPage() {
             <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
 
-          <Button type="submit" className="w-full">
-            Iniciar Sesión
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Ingresando...' : 'Iniciar Sesión'}
           </Button>
         </form>
-
-        <p className="text-xs text-gray-400 text-center mt-6">
-          Demo: usuario <span className="font-mono">admin</span> / contraseña <span className="font-mono">admin</span>
-        </p>
       </div>
     </div>
   );

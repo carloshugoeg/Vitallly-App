@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext, useCallback } from 'react';
+import { useState, useMemo, createContext, useContext } from 'react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { AuthContext } from '@/lib/auth';
 import Sidebar from '@/components/layout/Sidebar';
 import TopBar from '@/components/layout/TopBar';
 
@@ -21,36 +21,12 @@ export function usePatientContext() {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const { status } = useSession();
   const router = useRouter();
+  const contextValue = useMemo(() => ({ selectedPatientId, setSelectedPatientId }), [selectedPatientId]);
 
-  useEffect(() => {
-    const auth = localStorage.getItem('vitally_auth');
-    if (auth === 'true') {
-      setIsAuthenticated(true);
-    } else {
-      router.push('/login');
-    }
-    setLoading(false);
-  }, [router]);
-
-  const login = useCallback((username: string, password: string) => {
-    if (username === 'admin' && password === 'admin') {
-      localStorage.setItem('vitally_auth', 'true');
-      setIsAuthenticated(true);
-      return true;
-    }
-    return false;
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('vitally_auth');
-    setIsAuthenticated(false);
-  }, []);
-
-  if (loading) {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
         <div className="text-primary text-lg">Cargando...</div>
@@ -58,19 +34,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (status === 'unauthenticated') {
+    router.push('/login');
+    return null;
+  }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
-      <PatientContext.Provider value={{ selectedPatientId, setSelectedPatientId }}>
-        <div className="min-h-screen bg-cream">
-          <Sidebar />
-          <div className="ml-[260px]">
-            <TopBar />
-            <main className="p-6">{children}</main>
-          </div>
+    <PatientContext.Provider value={contextValue}>
+      <div className="min-h-screen bg-cream">
+        <Sidebar />
+        <div className="ml-[260px]">
+          <TopBar />
+          <main className="p-6">{children}</main>
         </div>
-      </PatientContext.Provider>
-    </AuthContext.Provider>
+      </div>
+    </PatientContext.Provider>
   );
 }

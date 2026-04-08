@@ -4,11 +4,14 @@ import { use } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import PatientForm from '@/components/patients/PatientForm';
-import { patients } from '@/data/patients';
+import Spinner from '@/components/ui/Spinner';
+import { usePatient } from '@/hooks/usePatients';
 
 export default function EditarPacientePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const patient = patients.find((p) => p.id === id);
+  const { patient, isLoading } = usePatient(id);
+
+  if (isLoading) return <Spinner />;
 
   if (!patient) {
     return (

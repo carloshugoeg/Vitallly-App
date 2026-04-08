@@ -8,25 +8,32 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import TabNavigation from '@/components/ui/TabNavigation';
 import MeasurementsTab from '@/components/consultation/MeasurementsTab';
 import ClinicalNotesTab from '@/components/consultation/ClinicalNotesTab';
 import NutritionalPlanTab from '@/components/consultation/NutritionalPlanTab';
-import { patients } from '@/data/patients';
+import { useToast } from '@/hooks/useToast';
+import { usePatients, usePatient } from '@/hooks/usePatients';
+import { createConsultation } from '@/hooks/useConsultations';
+import { NutritionalPlan } from '@/types/api';
 import { calculateAge } from '@/lib/utils';
-import { NutritionalPlan } from '@/data/types';
 
 const tabNames = ['1. Mediciones', '2. Notas Clinicas', '3. Plan Nutricional'];
 
 export default function NuevaConsultaPage() {
   const router = useRouter();
-  const [showSuccess, setShowSuccess] = useState(false);
+  const { toast, show: showToast } = useToast();
   const [activeTab, setActiveTab] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const [pacienteId, setPacienteId] = useState('');
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
 
-  const patient = patients.find((p) => p.id === pacienteId);
-  const talla = patient?.perfilClinico.estatura || 0;
+  const { patients } = usePatients({ pageSize: 500 });
+  const { patient } = usePatient(pacienteId || null);
+
+  const talla = patient?.perfilClinico?.estatura || 0;
   const genero = patient?.genero || 'F';
   const edad = patient ? calculateAge(patient.fechaNacimiento) : 30;
 
@@ -52,6 +59,8 @@ export default function NuevaConsultaPage() {
     recomendaciones: '',
   });
 
+  const [savedPlan, setSavedPlan] = useState<NutritionalPlan | null>(null);
+
   const handleMeasurementChange = (field: string, value: string) => {
     setMeasurements((prev) => ({ ...prev, [field]: value }));
   };
@@ -61,13 +70,67 @@ export default function NuevaConsultaPage() {
   };
 
   const handleSavePlan = (plan: NutritionalPlan) => {
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
+    setSavedPlan(plan);
+    showToast('Plan guardado. Puede registrar la consulta.');
   };
 
-  const handleSubmit = () => {
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
+  const handleSubmit = async () => {
+    if (!pacienteId) return;
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const hasAnthro = measurements.peso !== '';
+      const payload: Record<string, unknown> = {
+        pacienteId,
+        fecha,
+        ...notes,
+      };
+
+      if (hasAnthro) {
+        payload.anthropometry = {
+          peso: parseFloat(measurements.peso) || 0,
+          talla,
+          imc: talla > 0 ? parseFloat((parseFloat(measurements.peso) / ((talla / 100) ** 2)).toFixed(2)) : 0,
+          porcentajeGrasa: parseFloat(measurements.porcentajeGrasa) || 0,
+          porcentajeAgua: parseFloat(measurements.porcentajeAgua) || 0,
+          masaMusculo: parseFloat(measurements.masaMusculo) || 0,
+          valoracionFisica: parseInt(measurements.valoracionFisica) || 0,
+          masaOsea: parseFloat(measurements.masaOsea) || 0,
+          dci: parseFloat(measurements.dci) || 0,
+          edadMetabolica: parseInt(measurements.edadMetabolica) || 0,
+          grasaVisceral: parseInt(measurements.grasaVisceral) || 0,
+          circunferenciaCintura: parseFloat(measurements.circunferenciaCintura) || 0,
+          circunferenciaCadera: parseFloat(measurements.circunferenciaCadera) || 0,
+          pesoIdeal: 0,
+          notas: measurements.notasAntropometria,
+        };
+      }
+
+      if (savedPlan) {
+        payload.nutritionalPlan = {
+          objetivo: savedPlan.objetivo,
+          caloriasDiarias: savedPlan.caloriasDiarias,
+          proteinasPorcentaje: savedPlan.macros.proteinasPorcentaje,
+          carbohidratosPorcentaje: savedPlan.macros.carbohidratosPorcentaje,
+          grasasPorcentaje: savedPlan.macros.grasasPorcentaje,
+          proteinasGramos: savedPlan.macros.proteinasGramos,
+          carbohidratosGramos: savedPlan.macros.carbohidratosGramos,
+          grasasGramos: savedPlan.macros.grasasGramos,
+          comidas: savedPlan.comidas,
+          restricciones: savedPlan.restricciones,
+          suplementos: savedPlan.suplementos,
+          notas: savedPlan.notas,
+        };
+      }
+
+      await createConsultation(payload);
+      router.push('/consultas');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al registrar consulta');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const patientOptions = [
@@ -87,9 +150,15 @@ export default function NuevaConsultaPage() {
         </div>
       </div>
 
-      {showSuccess && (
-        <div className="bg-green-50 text-green-700 rounded-lg px-4 py-3 text-sm font-medium">
-          Consulta registrada exitosamente (demo).
+      {toast && (
+        <div className={`rounded-lg px-4 py-3 text-sm font-medium ${toast.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+          {toast.message}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-sm font-medium">
+          {error}
         </div>
       )}
 
@@ -109,21 +178,7 @@ export default function NuevaConsultaPage() {
       </Card>
 
       {/* Tab navigation */}
-      <div className="flex gap-1 border-b border-gray-200">
-        {tabNames.map((tab, i) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(i)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === i
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      <TabNavigation tabs={tabNames} activeTab={activeTab} onChange={setActiveTab} />
 
       {/* Tab content */}
       {activeTab === 0 && (
@@ -175,8 +230,8 @@ export default function NuevaConsultaPage() {
               Siguiente
             </Button>
           ) : (
-            <Button type="button" onClick={handleSubmit}>
-              Registrar Consulta
+            <Button type="button" onClick={handleSubmit} disabled={submitting}>
+              {submitting ? 'Registrando...' : 'Registrar Consulta'}
             </Button>
           )}
         </div>

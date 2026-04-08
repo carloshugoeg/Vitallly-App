@@ -2,7 +2,9 @@
 
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import { Patient } from '@/data/types';
+import Input from '@/components/ui/Input';
+import Textarea from '@/components/ui/Textarea';
+import { Patient } from '@/types/api';
 
 interface ClinicalNotesTabProps {
   values: {
@@ -17,8 +19,6 @@ interface ClinicalNotesTabProps {
 }
 
 export default function ClinicalNotesTab({ values, onChange, patient, readOnly = false }: ClinicalNotesTabProps) {
-  const textareaClass = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:bg-gray-50 disabled:text-gray-500';
-
   return (
     <div className="space-y-6">
       {/* Patient clinical profile (read-only display) */}
@@ -73,47 +73,39 @@ export default function ClinicalNotesTab({ values, onChange, patient, readOnly =
       <Card>
         <h4 className="text-sm font-semibold text-gray-900 mb-4">Notas de la Consulta</h4>
         <div className="space-y-4">
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">Motivo de la Consulta</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:bg-gray-50 disabled:text-gray-500"
-              value={values.motivo}
-              onChange={(e) => onChange('motivo', e.target.value)}
-              disabled={readOnly}
-              required
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">Notas Clinicas</label>
-            <textarea
-              className={textareaClass}
-              rows={4}
-              value={values.notasClinicas}
-              onChange={(e) => onChange('notasClinicas', e.target.value)}
-              placeholder="Observaciones durante la consulta..."
-              disabled={readOnly}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">Diagnostico</label>
-            <textarea
-              className={textareaClass}
-              rows={2}
-              value={values.diagnostico}
-              onChange={(e) => onChange('diagnostico', e.target.value)}
-              disabled={readOnly}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">Recomendaciones</label>
-            <textarea
-              className={textareaClass}
-              rows={3}
-              value={values.recomendaciones}
-              onChange={(e) => onChange('recomendaciones', e.target.value)}
-              disabled={readOnly}
-            />
-          </div>
+          <Input
+            id="cn-motivo"
+            label="Motivo de la Consulta"
+            value={values.motivo}
+            onChange={(e) => onChange('motivo', e.target.value)}
+            disabled={readOnly}
+            required
+          />
+          <Textarea
+            id="cn-notas"
+            label="Notas Clinicas"
+            rows={4}
+            value={values.notasClinicas}
+            onChange={(e) => onChange('notasClinicas', e.target.value)}
+            placeholder="Observaciones durante la consulta..."
+            disabled={readOnly}
+          />
+          <Textarea
+            id="cn-diagnostico"
+            label="Diagnostico"
+            rows={2}
+            value={values.diagnostico}
+            onChange={(e) => onChange('diagnostico', e.target.value)}
+            disabled={readOnly}
+          />
+          <Textarea
+            id="cn-recomendaciones"
+            label="Recomendaciones"
+            rows={3}
+            value={values.recomendaciones}
+            onChange={(e) => onChange('recomendaciones', e.target.value)}
+            disabled={readOnly}
+          />
         </div>
       </Card>
     </div>

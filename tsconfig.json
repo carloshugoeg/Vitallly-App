@@ -1,13 +1,16 @@
 {
   "compilerOptions": {
+    // ES2017 para compatibilidad con async/await nativo en todos los navegadores objetivo
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    // Next.js se encarga del build; TypeScript solo valida tipos
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
+    // "bundler" delega la resolucion de modulos a Next.js/Webpack
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -18,6 +21,7 @@
         "name": "next"
       }
     ],
+    // Alias @/* para imports desde src/ sin rutas relativas largas
     "paths": {
       "@/*": ["./src/*"]
     }
@@ -30,5 +34,6 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  // Se excluye prisma/ porque tiene su propio proceso de generacion de tipos
+  "exclude": ["node_modules", "prisma"]
 }

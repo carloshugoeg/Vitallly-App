@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import ReferenceIndicator from './ReferenceIndicator';
@@ -57,6 +57,14 @@ export default function MeasurementsTab({ talla, genero, edad, values, onChange,
   const cadera = parseFloat(values.circunferenciaCadera) || 0;
   const icc = cintura > 0 && cadera > 0 ? calculateIndiceCinturaCadera(cintura, cadera) : 0;
 
+  // Precompute classifications (avoids calling each function twice in JSX)
+  const fatClass = pGrasa > 0 ? classifyBodyFat(pGrasa, edad, genero) : null;
+  const waterClass = pAgua > 0 ? classifyWaterPercentage(pAgua, genero) : null;
+  const physClass = vFisica > 0 ? classifyPhysicalAssessment(vFisica) : null;
+  const boneClass = mOsea > 0 && peso > 0 ? classifyBoneMass(mOsea, peso, genero) : null;
+  const viscClass = gVisc > 0 ? classifyVisceralFat(gVisc) : null;
+  const iccClass = icc > 0 ? classifyICC(icc, genero) : null;
+
   return (
     <div className="space-y-6">
       {/* Auto-calculated summary */}
@@ -82,8 +90,8 @@ export default function MeasurementsTab({ talla, genero, edad, values, onChange,
         </Card>
         <Card className="text-center bg-gray-50">
           <p className="text-xs text-gray-500">ICC (auto)</p>
-          {icc > 0 ? (
-            <ReferenceIndicator value={icc} label={classifyICC(icc, genero).label} color={classifyICC(icc, genero).color} />
+          {iccClass ? (
+            <ReferenceIndicator value={icc} label={iccClass.label} color={iccClass.color} />
           ) : (
             <p className="text-lg text-gray-300">--</p>
           )}
@@ -99,17 +107,17 @@ export default function MeasurementsTab({ talla, genero, edad, values, onChange,
           </div>
           <div>
             <Input id="m-grasa" label="% Grasa Corporal" type="number" step="0.1" value={values.porcentajeGrasa} onChange={(e) => onChange('porcentajeGrasa', e.target.value)} disabled={readOnly} />
-            {pGrasa > 0 && (
+            {fatClass && (
               <div className="mt-1">
-                <ReferenceIndicator value={pGrasa} unit="%" label={classifyBodyFat(pGrasa, edad, genero).label} color={classifyBodyFat(pGrasa, edad, genero).color} />
+                <ReferenceIndicator value={pGrasa} unit="%" label={fatClass.label} color={fatClass.color} />
               </div>
             )}
           </div>
           <div>
             <Input id="m-agua" label="% Agua Corporal" type="number" step="0.1" value={values.porcentajeAgua} onChange={(e) => onChange('porcentajeAgua', e.target.value)} disabled={readOnly} />
-            {pAgua > 0 && (
+            {waterClass && (
               <div className="mt-1">
-                <ReferenceIndicator value={pAgua} unit="%" label={classifyWaterPercentage(pAgua, genero).label} color={classifyWaterPercentage(pAgua, genero).color} />
+                <ReferenceIndicator value={pAgua} unit="%" label={waterClass.label} color={waterClass.color} />
               </div>
             )}
           </div>
@@ -118,17 +126,17 @@ export default function MeasurementsTab({ talla, genero, edad, values, onChange,
           </div>
           <div>
             <Input id="m-vfisica" label="Valoracion Fisica (1-9)" type="number" min="1" max="9" value={values.valoracionFisica} onChange={(e) => onChange('valoracionFisica', e.target.value)} disabled={readOnly} />
-            {vFisica > 0 && (
+            {physClass && (
               <div className="mt-1">
-                <ReferenceIndicator value={vFisica} label={classifyPhysicalAssessment(vFisica).label} color={classifyPhysicalAssessment(vFisica).color} />
+                <ReferenceIndicator value={vFisica} label={physClass.label} color={physClass.color} />
               </div>
             )}
           </div>
           <div>
             <Input id="m-osea" label="Masa Osea (kg)" type="number" step="0.1" value={values.masaOsea} onChange={(e) => onChange('masaOsea', e.target.value)} disabled={readOnly} />
-            {mOsea > 0 && peso > 0 && (
+            {boneClass && (
               <div className="mt-1">
-                <ReferenceIndicator value={mOsea} unit=" kg" label={classifyBoneMass(mOsea, peso, genero).label} color={classifyBoneMass(mOsea, peso, genero).color} />
+                <ReferenceIndicator value={mOsea} unit=" kg" label={boneClass.label} color={boneClass.color} />
               </div>
             )}
           </div>
@@ -140,9 +148,9 @@ export default function MeasurementsTab({ talla, genero, edad, values, onChange,
           </div>
           <div>
             <Input id="m-gvisc" label="Grasa Visceral (1-59)" type="number" min="1" max="59" value={values.grasaVisceral} onChange={(e) => onChange('grasaVisceral', e.target.value)} disabled={readOnly} />
-            {gVisc > 0 && (
+            {viscClass && (
               <div className="mt-1">
-                <ReferenceIndicator value={gVisc} label={classifyVisceralFat(gVisc).label} color={classifyVisceralFat(gVisc).color} />
+                <ReferenceIndicator value={gVisc} label={viscClass.label} color={viscClass.color} />
               </div>
             )}
           </div>

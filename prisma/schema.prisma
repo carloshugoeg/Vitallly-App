@@ -1,0 +1,363 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────
+
+enum Gender {
+  M
+  F
+}
+
+/// Niveles de actividad física según clasificación OMS simplificada
+enum ActivityLevel {
+  sedentario
+  ligero
+  moderado
+  activo
+  muy_activo
+}
+
+/// Determina el flujo clínico: primera_vez requiere evaluación completa,
+/// seguimiento y control son más breves, emergencia se agenda sin restricción de horario
+enum AppointmentType {
+  primera_vez
+  seguimiento
+  control
+  emergencia
+}
+
+enum AppointmentStatus {
+  programada
+  completada
+  cancelada
+}
+
+/// Controla el nivel de acceso en la UI y las acciones permitidas por tenant
+enum UserRole {
+  ADMIN
+  OWNER
+  NUTRITIONIST
+  ASSISTANT
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+// ─── Tenancy & Auth ─────────────────────────────────────
+
+/// Unidad de aislamiento multi-tenant: cada clínica opera como un tenant independiente.
+/// Todos los datos clínicos cuelgan de un tenant para garantizar separación total.
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  /// Identificador URL-friendly, se usa en rutas y para login
+  slug      String   @unique
+  /// Permite deshabilitar una clínica sin eliminar sus datos
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users             User[]
+  invitations       Invitation[]
+  patients          Patient[]
+  appointments      Appointment[]
+  consultations     Consultation[]
+  anthropometries   Anthropometry[]
+  nutritionalPlans  NutritionalPlan[]
+  auditLogs         AuditLog[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  email        String   @unique
+  passwordHash String
+  nombre       String
+  apellido     String
+  /// Título profesional (Lic., Dr., etc.) usado en reportes e interfaz
+  titulo       String   @default("")
+  role         UserRole @default(NUTRITIONIST)
+  /// Soft-disable: el usuario no puede loguearse pero se preservan sus registros de auditoría
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  settings  UserSettings?
+  auditLogs AuditLog[]
+
+  @@index([tenantId])
+}
+
+/// Permite a un OWNER invitar nutricionistas/asistentes por email con un token de un solo uso
+model Invitation {
+  id        String           @id @default(cuid())
+  tenantId  String
+  email     String
+  role      UserRole         @default(NUTRITIONIST)
+  /// Token único para el link de invitación; se invalida al aceptar o expirar
+  token     String           @unique @default(cuid())
+  status    InvitationStatus @default(PENDING)
+  expiresAt DateTime
+  createdAt DateTime         @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([token])
+}
+
+/// Preferencias por nutricionista: fórmulas, distribución de macros por defecto, horario laboral.
+/// Se usa para pre-rellenar formularios y calcular disponibilidad en agenda.
+model UserSettings {
+  id                           String @id @default(cuid())
+  userId                       String @unique
+  /// JSON libre para ocultar/mostrar campos opcionales en el formulario de consulta
+  consultationFieldConfig      Json   @default("{}")
+  defaultAppointmentDuration   Int    @default(60)
+  /// Distribución de macros por defecto (deben sumar 100%)
+  defaultProteinPct            Int    @default(30)
+  defaultCarbPct               Int    @default(40)
+  defaultFatPct                Int    @default(30)
+  /// Fórmula para cálculo de requerimiento energético (harris_benedict, mifflin_st_jeor, etc.)
+  preferredFormula             String @default("harris_benedict")
+  /// Horario laboral en JSON para validar disponibilidad al agendar citas
+  workingHours                 Json   @default("{\"start\": \"08:00\", \"end\": \"17:00\"}")
+  timezone                     String @default("America/Guatemala")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Core Domain ────────────────────────────────────────
+
+model Patient {
+  id               String   @id @default(cuid())
+  tenantId         String
+  nombre           String
+  apellido         String
+  /// DPI (Documento Personal de Identificación) guatemalteco, único por tenant
+  dpi              String
+  /// String ISO para evitar problemas de timezone al almacenar solo la fecha
+  fechaNacimiento  String
+  genero           Gender
+  telefono         String
+  email            String   @default("")
+  direccion        String   @default("")
+  ocupacion        String   @default("")
+
+  // Contacto de emergencia aplanado para evitar una tabla extra con relación 1:1
+  contactoEmergenciaNombre   String @default("")
+  contactoEmergenciaTelefono String @default("")
+  contactoEmergenciaRelacion String @default("")
+
+  // Historial médico como arrays: permite búsqueda y no requiere normalización
+  antecedentesMedicos    String[]
+  antecedentesFamiliares String[]
+  alergias               String[]
+  medicamentos           String[]
+
+  // Estilo de vida aplanado — se captura en la ficha inicial del paciente
+  nivelActividad    ActivityLevel @default(sedentario)
+  horasSueno        Float         @default(7)
+  consumoAlcohol    Boolean       @default(false)
+  fumador           Boolean       @default(false)
+  ejercicioSemanal  String        @default("")
+
+  // Perfil clínico aplanado — datos que se revisan en cada consulta
+  /// Estatura en cm; se almacena aquí porque rara vez cambia (a diferencia del peso)
+  estatura               Float    @default(0)
+  patologias             String[]
+  examenesLaboratorio    String[]
+  sintomas               String[]
+  vicios                 String[]
+  alimentosNoTolerables  String[]
+
+  fechaRegistro String
+  notas         String @default("")
+
+  /// Soft delete: permite restaurar pacientes eliminados por error
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  appointments     Appointment[]
+  consultations    Consultation[]
+  anthropometries  Anthropometry[]
+  nutritionalPlans NutritionalPlan[]
+
+  /// DPI único dentro del mismo tenant (distintos tenants pueden tener el mismo DPI)
+  @@unique([tenantId, dpi])
+  /// Índice para búsqueda de pacientes por nombre en la lista principal
+  @@index([tenantId, apellido, nombre])
+}
+
+model Appointment {
+  id         String            @id @default(cuid())
+  tenantId   String
+  pacienteId String
+  /// Fecha y hora como strings ISO para consistencia con el resto del esquema
+  fecha      String
+  hora       String
+  /// Duración en minutos; por defecto 60, configurable en UserSettings
+  duracion   Int               @default(60)
+  tipo       AppointmentType
+  motivo     String            @default("")
+  estado     AppointmentStatus @default(programada)
+  notas      String            @default("")
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  patient Patient @relation(fields: [pacienteId], references: [id])
+
+  /// Índice principal para la vista de agenda diaria/semanal
+  @@index([tenantId, fecha])
+  @@index([pacienteId])
+}
+
+/// Registro de cada visita del paciente. Es la entidad central que conecta
+/// la antropometría y el plan nutricional de esa fecha.
+model Consultation {
+  id                 String  @id @default(cuid())
+  tenantId           String
+  pacienteId         String
+  fecha              String
+  motivo             String  @default("")
+  notasClinicas      String  @default("")
+  diagnostico        String  @default("")
+  recomendaciones    String  @default("")
+  /// Fecha sugerida para el próximo control; null si no se agenda aún
+  proximaCita        String?
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  patient         Patient          @relation(fields: [pacienteId], references: [id])
+  /// Relación 1:1 opcional: no toda consulta requiere medición antropométrica
+  anthropometry   Anthropometry?
+  /// Relación 1:1 opcional: el plan se puede crear o actualizar en cualquier consulta
+  nutritionalPlan NutritionalPlan?
+
+  @@index([tenantId, fecha])
+  @@index([pacienteId])
+}
+
+/// Mediciones corporales tomadas con báscula de bioimpedancia.
+/// Siempre vinculada 1:1 a una consulta para rastrear la evolución temporal.
+model Anthropometry {
+  id                    String @id @default(cuid())
+  tenantId              String
+  pacienteId            String
+  /// Relación 1:1 con consulta — cada medición pertenece a exactamente una consulta
+  consultaId            String @unique
+  fecha                 String
+  peso                  Float
+  /// Talla en cm (redundante con Patient.estatura, pero se registra para verificar)
+  talla                 Float
+  imc                   Float
+  circunferenciaCintura Float  @default(0)
+  circunferenciaCadera  Float  @default(0)
+  porcentajeGrasa       Float  @default(0)
+  pesoIdeal             Float  @default(0)
+  porcentajeAgua        Float  @default(0)
+  masaMusculo           Float  @default(0)
+  valoracionFisica      Float  @default(0)
+  masaOsea              Float  @default(0)
+  /// DCI = Densidad Calórica Ideal / ingesta calórica diaria estimada por la báscula
+  dci                   Float  @default(0)
+  edadMetabolica        Float  @default(0)
+  grasaVisceral         Float  @default(0)
+  notas                 String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  patient      Patient      @relation(fields: [pacienteId], references: [id])
+  consultation Consultation @relation(fields: [consultaId], references: [id])
+
+  /// Índice compuesto para graficar evolución de un paciente en el tiempo
+  @@index([tenantId, pacienteId, fecha])
+  @@index([pacienteId])
+}
+
+/// Plan alimenticio prescrito al paciente. Puede estar vinculado a una consulta
+/// o existir de forma independiente (planes de mantenimiento fuera de consulta).
+model NutritionalPlan {
+  id                     String  @id @default(cuid())
+  tenantId               String
+  pacienteId             String
+  /// Opcional: permite planes independientes de una consulta específica
+  consultaId             String? @unique
+  fecha                  String
+  objetivo               String  @default("")
+  caloriasDiarias        Float   @default(0)
+
+  // Macronutrientes: se guardan tanto en % como en gramos porque ambos
+  // se muestran en la UI y evita recalcular con cada renderizado
+  proteinasPorcentaje    Float @default(0)
+  carbohidratosPorcentaje Float @default(0)
+  grasasPorcentaje       Float @default(0)
+  proteinasGramos        Float @default(0)
+  carbohidratosGramos    Float @default(0)
+  grasasGramos           Float @default(0)
+
+  /// JSON array de comidas con nombre, hora y descripción de cada tiempo
+  comidas       Json     @default("[]")
+  restricciones String[]
+  suplementos   String[]
+  notas         String   @default("")
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  patient      Patient       @relation(fields: [pacienteId], references: [id])
+  consultation Consultation? @relation(fields: [consultaId], references: [id])
+
+  @@index([tenantId, pacienteId])
+  @@index([pacienteId])
+}
+
+// ─── Audit ──────────────────────────────────────────────
+
+/// Registro inmutable de cambios para cumplimiento normativo y trazabilidad.
+/// Nunca se elimina; se consulta para historial de cambios en la UI.
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  action     String   // CREATE, UPDATE, DELETE
+  entityType String   // Patient, Consultation, Appointment, etc.
+  entityId   String
+  /// Diff de cambios: { campo: { old: valor_anterior, new: valor_nuevo } }
+  changes    Json?
+  ipAddress  String   @default("")
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  /// Índice para buscar historial de una entidad específica
+  @@index([tenantId, entityType, entityId])
+  /// Índice para auditar acciones de un usuario específico
+  @@index([tenantId, userId])
+  /// Índice para consultas por rango de fecha
+  @@index([createdAt])
+}
