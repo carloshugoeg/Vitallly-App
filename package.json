@@ -12,7 +12,8 @@
     "db:seed": "npx prisma db seed",
     "db:seed:prod": "npx tsx prisma/seed-production.ts",
     "db:reset": "npx prisma migrate reset",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",
