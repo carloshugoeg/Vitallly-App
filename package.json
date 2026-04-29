@@ -13,7 +13,13 @@
     "db:seed:prod": "npx tsx prisma/seed-production.ts",
     "db:reset": "npx prisma migrate reset",
     "db:studio": "npx prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test:unit": "tsx tests/unit-calculations.ts",
+    "test:partitions": "tsx tests/partitions-imc.ts && tsx tests/partitions-body-fat.ts && tsx tests/partitions-icc.ts",
+    "test:boundary": "tsx tests/boundary-values.ts",
+    "test:benchmark": "tsx tests/benchmark.ts",
+    "test:db": "tsx tests/db-connection.ts",
+    "test:all": "npm run test:unit && npm run test:partitions && npm run test:boundary && npm run test:benchmark && npm run test:db"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",
@@ -45,6 +51,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
