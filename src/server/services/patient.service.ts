@@ -121,6 +121,7 @@ export async function listPatients(tenantId: string, params: ListPatientsParams)
       { nombre: { contains: search, mode: 'insensitive' } },
       { apellido: { contains: search, mode: 'insensitive' } },
       { dpi: { contains: search, mode: 'insensitive' } },
+      { telefono: { contains: search, mode: 'insensitive' } },
     ];
   }
 

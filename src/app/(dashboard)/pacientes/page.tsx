@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { UserPlus, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -20,11 +20,11 @@ export default function PacientesPage() {
   const urlSearchParams = useSearchParams();
   const [search, setSearch] = useState(urlSearchParams.get('search') ?? '');
   const [page, setPage] = useState(1);
+  const urlSearch = urlSearchParams.get('search') ?? '';
   useEffect(() => {
-  const paramValue = urlSearchParams.get('search') ?? '';
-  setSearch(paramValue);
-  setPage(1);
-  }, [urlSearchParams]);
+    setSearch(urlSearch);
+    setPage(1);
+  }, [urlSearch]);
 
 
   const debouncedSearch = useDebouncedValue(search);
@@ -50,9 +50,11 @@ export default function PacientesPage() {
     }
   };
 
-  if (isLoading) return <Spinner />;
-  if (error) return <ErrorDisplay message="No se pudieron cargar los pacientes." onRetry={() => mutate()} />;
+  const hasLoadedOnce = useRef(false);
+  if (!isLoading) hasLoadedOnce.current = true;
 
+  if (!hasLoadedOnce.current) return <Spinner />;
+  if (error) return <ErrorDisplay message="No se pudieron cargar los pacientes." onRetry={() => mutate()} />;
   const totalPages = meta ? Math.ceil(meta.total / meta.pageSize) : 1;
 
   return (
@@ -71,12 +73,17 @@ export default function PacientesPage() {
       </div>
 
       <Card>
-        <div className="mb-4">
+        <div className="mb-4 relative">
           <SearchBar
             value={search}
             onChange={handleSearchChange}
             placeholder="Buscar por nombre, DPI o teléfono..."
           />
+          {isLoading && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+              Buscando...
+            </span>
+          )}
         </div>
 
         <div className="overflow-x-auto">
