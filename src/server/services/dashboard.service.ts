@@ -2,9 +2,9 @@ import 'server-only';
 
 import { prisma } from '@/server/lib/prisma';
 
-export async function getStats(tenantId: string) {
-  const today = new Date().toISOString().split('T')[0];
-
+  export async function getStats(tenantId: string) {
+  const now = new Date();
+  const today = now.toLocaleDateString('en-CA', { timeZone: 'America/Guatemala' });
   const [
     totalPatients,
     todayAppointments,
