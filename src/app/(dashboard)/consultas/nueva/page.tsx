@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import Card from '@/components/ui/Card';
@@ -27,9 +27,13 @@ export default function NuevaConsultaPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const [pacienteId, setPacienteId] = useState('');
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const searchParams = useSearchParams();
 
+  const [pacienteId, setPacienteId] = useState(searchParams.get('pacienteId') ?? '');
+  const [fecha, setFecha] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
   const { patients } = usePatients({ pageSize: 500 });
   const { patient } = usePatient(pacienteId || null);
 
@@ -53,7 +57,7 @@ export default function NuevaConsultaPage() {
   });
 
   const [notes, setNotes] = useState({
-    motivo: '',
+    motivo: searchParams.get('motivo') ?? '',
     notasClinicas: '',
     diagnostico: '',
     recomendaciones: '',

@@ -65,7 +65,7 @@ export default function TopBar() {
     <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6">
       
       {/* Barra de búsqueda con dropdown */}
-      <div ref={containerRef} className="relative w-80">
+      <div ref={containerRef} className="relative flex-1 max-w-xl">
         <form onSubmit={handleSearch}>
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
           <input
