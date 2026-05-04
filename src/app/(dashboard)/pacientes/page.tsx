@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { UserPlus, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -18,9 +18,15 @@ const PAGE_SIZE = 20;
 
 export default function PacientesPage() {
   const urlSearchParams = useSearchParams();
-  const initialSearch = urlSearchParams.get('search') ?? '';
-  const [search, setSearch] = useState(initialSearch);
+  const [search, setSearch] = useState(urlSearchParams.get('search') ?? '');
   const [page, setPage] = useState(1);
+  useEffect(() => {
+  const paramValue = urlSearchParams.get('search') ?? '';
+  setSearch(paramValue);
+  setPage(1);
+  }, [urlSearchParams]);
+
+
   const debouncedSearch = useDebouncedValue(search);
   const { patients, meta, isLoading, error, mutate } = usePatients({
     search: debouncedSearch,
