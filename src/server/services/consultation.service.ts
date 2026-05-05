@@ -162,6 +162,17 @@ export async function createConsultation(
       },
     });
 
+    await tx.appointment.updateMany({
+      where: {
+        tenantId,
+        pacienteId: consultationData.pacienteId,
+        fecha: consultationData.fecha,
+        estado: 'programada',
+        deletedAt: null,
+      },
+      data: { estado: 'completada' },
+    });
+
     // 2. Optionally create anthropometry
     let anthropometry: Anthropometry | null = null;
     if (anthroData) {

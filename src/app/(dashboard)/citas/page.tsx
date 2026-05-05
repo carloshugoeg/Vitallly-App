@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Clock, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, FileText, Pencil, Trash2 } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -15,10 +15,11 @@ import Select from '@/components/ui/Select';
 import DayPopover from '@/components/ui/DayPopover';
 import Spinner from '@/components/ui/Spinner';
 import ErrorDisplay from '@/components/ui/ErrorDisplay';
-import { useAppointments, createAppointment } from '@/hooks/useAppointments';
+import { useAppointments, createAppointment, updateAppointment, deleteAppointment } from '@/hooks/useAppointments';
 import { usePatients } from '@/hooks/usePatients';
 import { useToast } from '@/hooks/useToast';
 import { APPOINTMENT_TYPES, APPOINTMENT_STATUS } from '@/lib/constants';
+import type { Appointment } from '@/types/api';
 
 const DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
 
@@ -32,6 +33,8 @@ export default function CitasPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
 
   const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
   const [hoveredRect, setHoveredRect] = useState<DOMRect | null>(null);
@@ -64,6 +67,7 @@ export default function CitasPage() {
   const [newAppt, setNewAppt] = useState({ pacienteId: '', fecha: selectedDateStr, hora: '09:00', tipo: 'seguimiento', motivo: '', estado: 'programada', notas: '' });
   const { toast, show: showToast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const dateParam = searchParams.get('date');
@@ -88,7 +92,7 @@ export default function CitasPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await createAppointment({
+      const appointmentData = {
         pacienteId: newAppt.pacienteId,
         fecha: newAppt.fecha,
         hora: newAppt.hora,
@@ -96,16 +100,67 @@ export default function CitasPage() {
         motivo: newAppt.motivo,
         estado: newAppt.estado as 'programada' | 'completada' | 'cancelada',
         notas: newAppt.notas,
-      });
+      };
+
+      if (editingAppointmentId) {
+        await updateAppointment(editingAppointmentId, appointmentData);
+      } else {
+        await createAppointment(appointmentData);
+      }
+
       mutate();
       setShowModal(false);
+      setEditingAppointmentId(null);
       setNewAppt({ pacienteId: '', fecha: selectedDateStr, hora: '09:00', tipo: 'seguimiento', motivo: '', estado: 'programada', notas: '' });
-      showToast('Cita guardada exitosamente.');
+      showToast(editingAppointmentId ? 'Cita actualizada exitosamente.' : 'Cita guardada exitosamente.');
     } catch {
       showToast('Error al guardar cita.', 'error');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEditAppointment = (appointment: Appointment, e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingAppointmentId(appointment.id);
+    setNewAppt({
+      pacienteId: appointment.pacienteId,
+      fecha: appointment.fecha,
+      hora: appointment.hora,
+      tipo: appointment.tipo,
+      motivo: appointment.motivo,
+      estado: appointment.estado,
+      notas: appointment.notas,
+    });
+    setShowModal(true);
+  };
+
+  const handleDeleteClick = (appointment: Appointment, e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAppointmentToDelete(appointment);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!appointmentToDelete) return;
+    setDeleting(true);
+    try {
+      await deleteAppointment(appointmentToDelete.id);
+      mutate();
+      setAppointmentToDelete(null);
+      showToast('Cita eliminada exitosamente.');
+    } catch {
+      showToast('Error al eliminar cita.', 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const closeAppointmentModal = () => {
+    setShowModal(false);
+    setEditingAppointmentId(null);
+    setNewAppt({ pacienteId: '', fecha: selectedDateStr, hora: '09:00', tipo: 'seguimiento', motivo: '', estado: 'programada', notas: '' });
   };
 
   const handleMouseEnter = useCallback((day: Date, e: React.MouseEvent<HTMLButtonElement>) => {
@@ -135,6 +190,7 @@ export default function CitasPage() {
   const handleNewAppointment = useCallback((date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     setSelectedDate(date);
+    setEditingAppointmentId(null);
     setNewAppt((prev) => ({ ...prev, fecha: dateStr }));
     setShowModal(true);
   }, []);
@@ -153,7 +209,11 @@ export default function CitasPage() {
           <h1 className="text-2xl font-bold text-gray-900">Citas</h1>
           <p className="text-sm text-gray-500">Gestión de citas y agenda</p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
+        <Button onClick={() => {
+          setEditingAppointmentId(null);
+          setNewAppt({ pacienteId: '', fecha: selectedDateStr, hora: '09:00', tipo: 'seguimiento', motivo: '', estado: 'programada', notas: '' });
+          setShowModal(true);
+        }}>
           <Plus size={18} /> Nueva Cita
         </Button>
       </div>
@@ -268,11 +328,14 @@ export default function CitasPage() {
                   appointmentId: apt.id,
                 });
                 return (
-                  <Link
+                  <div
                     key={apt.id}
-                    href={`/consultas/nueva?${params.toString()}`}
-                    className="flex items-start gap-4 p-4 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-primary-50 transition-all group"
+                    className="flex items-start gap-3 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-primary-50 transition-all group"
                   >
+                    <Link
+                      href={`/consultas/nueva?${params.toString()}`}
+                      className="flex min-w-0 flex-1 items-start gap-4 p-4"
+                    >
                     <div className="flex items-center gap-1.5 text-sm text-gray-500 min-w-[60px]">
                       <Clock size={14} />
                       <span className="font-medium">{apt.hora}</span>
@@ -287,8 +350,29 @@ export default function CitasPage() {
                       <p className="text-sm text-gray-500 mt-0.5">{APPOINTMENT_TYPES[apt.tipo]} · {apt.motivo}</p>
                       {apt.notas && <p className="text-xs text-gray-400 mt-1">{apt.notas}</p>}
                     </div>
-                    <FileText size={15} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
-                  </Link>
+                      <FileText size={15} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
+                    </Link>
+                    <div className="flex items-center gap-1 pr-3 pt-3">
+                      <button
+                        type="button"
+                        onClick={(e) => handleEditAppointment(apt, e)}
+                        className="p-2 rounded-lg text-gray-500 hover:bg-white hover:text-primary transition-colors"
+                        aria-label="Editar cita"
+                        title="Editar cita"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteClick(apt, e)}
+                        className="p-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-danger transition-colors"
+                        aria-label="Eliminar cita"
+                        title="Eliminar cita"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -296,8 +380,8 @@ export default function CitasPage() {
         </Card>
       </div>
 
-      {/* New appointment modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Nueva Cita">
+      {/* Appointment modal */}
+      <Modal isOpen={showModal} onClose={closeAppointmentModal} title={editingAppointmentId ? 'Editar Cita' : 'Nueva Cita'}>
         <form onSubmit={handleSaveAppointment} className="space-y-4">
           <Select id="appt-patient" label="Paciente" options={patientOptions} value={newAppt.pacienteId} onChange={(e) => setNewAppt({ ...newAppt, pacienteId: e.target.value })} required />
           <div className="grid grid-cols-2 gap-4">
@@ -319,10 +403,30 @@ export default function CitasPage() {
             />
           </div>
           <div className="flex gap-3 justify-end pt-2">
-            <Button type="button" variant="ghost" onClick={() => setShowModal(false)}>Cancelar</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : 'Guardar Cita'}</Button>
+            <Button type="button" variant="ghost" onClick={closeAppointmentModal}>Cancelar</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? 'Guardando...' : editingAppointmentId ? 'Actualizar Cita' : 'Guardar Cita'}</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={Boolean(appointmentToDelete)} onClose={() => setAppointmentToDelete(null)} title="Eliminar cita">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">¿Eliminar esta cita?</p>
+          {appointmentToDelete && (
+            <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
+              <p className="font-medium text-gray-900">
+                {appointmentToDelete.patient ? `${appointmentToDelete.patient.nombre} ${appointmentToDelete.patient.apellido}` : 'Paciente'}
+              </p>
+              <p>{appointmentToDelete.fecha} · {appointmentToDelete.hora}</p>
+            </div>
+          )}
+          <div className="flex gap-3 justify-end pt-2">
+            <Button type="button" variant="ghost" onClick={() => setAppointmentToDelete(null)} disabled={deleting}>Cancelar</Button>
+            <Button type="button" variant="danger" onClick={handleConfirmDelete} disabled={deleting}>
+              {deleting ? 'Eliminando...' : 'Eliminar'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
