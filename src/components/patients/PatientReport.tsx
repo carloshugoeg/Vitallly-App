@@ -1,12 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
 import Button from '@/components/ui/Button';
 import { Patient, Anthropometry, NutritionalPlan, Consultation } from '@/types/api';
 import { calculateAge, formatDate, formatDateLong } from '@/lib/utils';
 import { getIMCClassification } from '@/lib/calculations';
-import { classifyBodyFat, classifyVisceralFat, classifyWaterPercentage } from '@/lib/referenceRanges';
+import { classifyBodyFat, classifyVisceralFat } from '@/lib/referenceRanges';
 import { Printer } from 'lucide-react';
 
 interface PatientReportProps {
@@ -17,6 +17,7 @@ interface PatientReportProps {
 }
 
 export default function PatientReport({ patient, anthropometry, plans, consultations }: PatientReportProps) {
+  const reportRef = useRef<HTMLDivElement>(null);
   const edad = calculateAge(patient.fechaNacimiento);
 
   const { sortedAnthro, latest, first, latestPlan, weightData, bmiData } = useMemo(() => {
@@ -32,7 +33,94 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
     };
   }, [anthropometry, plans]);
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    const report = reportRef.current;
+    if (!report) return;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const printDocument = iframe.contentDocument;
+    const printWindow = iframe.contentWindow;
+    if (!printDocument || !printWindow) {
+      iframe.remove();
+      window.print();
+      return;
+    }
+
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((node) => node.outerHTML)
+      .join('\n');
+
+    printDocument.open();
+    printDocument.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Reporte del Paciente</title>
+          ${styles}
+          <style>
+            @page { margin: 1cm; }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #fff !important;
+              visibility: visible !important;
+            }
+            #patient-report {
+              position: static !important;
+              visibility: visible !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #fff !important;
+            }
+            #patient-report * {
+              visibility: visible !important;
+            }
+            .print\\:hidden {
+              display: none !important;
+            }
+          </style>
+        </head>
+        <body>${report.outerHTML}</body>
+      </html>
+    `);
+    printDocument.close();
+
+    let hasPrinted = false;
+    const printReport = () => {
+      if (hasPrinted) return;
+      hasPrinted = true;
+      printWindow.focus();
+      printWindow.print();
+      setTimeout(() => iframe.remove(), 1000);
+    };
+
+    const stylesheets = Array.from(printDocument.querySelectorAll('link[rel="stylesheet"]'));
+    if (stylesheets.length === 0) {
+      printReport();
+      return;
+    }
+
+    let loaded = 0;
+    const markLoaded = () => {
+      loaded += 1;
+      if (loaded === stylesheets.length) printReport();
+    };
+
+    stylesheets.forEach((stylesheet) => {
+      stylesheet.addEventListener('load', markLoaded, { once: true });
+      stylesheet.addEventListener('error', markLoaded, { once: true });
+    });
+    setTimeout(printReport, 1000);
+  };
 
   return (
     <div>
@@ -40,7 +128,7 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
         <Button onClick={handlePrint}><Printer size={16} /> Imprimir / Guardar PDF</Button>
       </div>
 
-      <div id="patient-report" className="space-y-6 text-sm">
+      <div id="patient-report" ref={reportRef} className="space-y-6 text-sm">
         {/* Header */}
         <div className="text-center border-b pb-4">
           <h1 className="text-xl font-bold text-primary">Vitally - Clinica de Nutricion</h1>

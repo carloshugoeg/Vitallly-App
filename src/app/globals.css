@@ -27,19 +27,43 @@ body {
   /* Oculta todo de forma más segura */
   body {
     visibility: hidden;
+    background: white !important;
   }
 
   /* Muestra solo el reporte */
   #patient-report,
   #patient-report * {
-    visibility: visible;
+    visibility: visible !important;
   }
 
-  /* IMPORTANTE: sin absolute */
+  .modal-root {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    z-index: auto !important;
+    display: block !important;
+    width: 100% !important;
+    min-height: 0 !important;
+  }
+
+  .modal-panel {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
   #patient-report {
-    position: static;
-    width: 100%;
-    background: white;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   /* Oculta botones */
