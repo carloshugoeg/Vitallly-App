@@ -181,8 +181,9 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
             {/* Charts */}
             {weightData.length >= 2 && (
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-xs font-medium text-gray-700 mb-2">Evolucion de Peso (kg)</p>
+                {/* Gráficos — solo en pantalla */}
+                <div className="print:hidden">
+                  <p className="text-xs font-medium text-gray-700 mb-2">Evolución de Peso (kg)</p>
                   <LineChart width={250} height={160} data={weightData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="fecha" tick={{ fontSize: 9 }} />
@@ -191,7 +192,7 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
                     <Line type="monotone" dataKey="peso" stroke="#2D5A3D" strokeWidth={2} dot={{ r: 3, fill: '#2D5A3D' }} name="Peso (kg)" />
                   </LineChart>
                 </div>
-                <div>
+                <div className="print:hidden">
                   <p className="text-xs font-medium text-gray-700 mb-2">Tendencia de IMC</p>
                   <AreaChart width={250} height={160} data={bmiData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -203,6 +204,29 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
                     <ReferenceLine y={30} stroke="#F59E0B" strokeDasharray="3 3" />
                     <Area type="monotone" dataKey="imc" stroke="#2D5A3D" fill="#E8F5EC" strokeWidth={2} name="IMC" dot={{ r: 3, fill: '#2D5A3D' }} />
                   </AreaChart>
+                </div>
+
+                {/* Tabla de datos — solo al imprimir */}
+                <div className="hidden print:block col-span-2">
+                  <p className="text-xs font-medium text-gray-700 mb-2">Historial de mediciones:</p>
+                  <table className="w-full text-xs border">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="text-left py-1 px-2 border-b">Fecha</th>
+                        <th className="text-right py-1 px-2 border-b">Peso (kg)</th>
+                        <th className="text-right py-1 px-2 border-b">IMC</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedAnthro.map((a) => (
+                        <tr key={a.id}>
+                          <td className="py-1 px-2 border-b">{formatDate(a.fecha)}</td>
+                          <td className="text-right py-1 px-2 border-b">{a.peso}</td>
+                          <td className="text-right py-1 px-2 border-b">{a.imc}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}

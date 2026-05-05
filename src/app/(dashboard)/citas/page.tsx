@@ -1,9 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, FileText } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -260,24 +261,36 @@ export default function CitasPage() {
             <p className="text-sm text-gray-500 py-8 text-center">No hay citas para este día.</p>
           ) : (
             <div className="space-y-3">
-              {dayAppointments.map((apt) => (
-                <div key={apt.id} className="flex items-start gap-4 p-4 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
-                  <div className="flex items-center gap-1.5 text-sm text-gray-500 min-w-[60px]">
-                    <Clock size={14} />
-                    <span className="font-medium">{apt.hora}</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-gray-900">
-                        {apt.patient ? `${apt.patient.nombre} ${apt.patient.apellido}` : 'Paciente'}
-                      </p>
-                      <Badge variant={APPOINTMENT_STATUS[apt.estado].badge}>{APPOINTMENT_STATUS[apt.estado].label}</Badge>
+              {dayAppointments.map((apt) => {
+                const params = new URLSearchParams({
+                  pacienteId: apt.pacienteId,
+                  motivo: apt.motivo ?? '',
+                  appointmentId: apt.id,
+                });
+                return (
+                  <Link
+                    key={apt.id}
+                    href={`/consultas/nueva?${params.toString()}`}
+                    className="flex items-start gap-4 p-4 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-primary-50 transition-all group"
+                  >
+                    <div className="flex items-center gap-1.5 text-sm text-gray-500 min-w-[60px]">
+                      <Clock size={14} />
+                      <span className="font-medium">{apt.hora}</span>
                     </div>
-                    <p className="text-sm text-gray-500 mt-0.5">{APPOINTMENT_TYPES[apt.tipo]} · {apt.motivo}</p>
-                    {apt.notas && <p className="text-xs text-gray-400 mt-1">{apt.notas}</p>}
-                  </div>
-                </div>
-              ))}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-gray-900">
+                          {apt.patient ? `${apt.patient.nombre} ${apt.patient.apellido}` : 'Paciente'}
+                        </p>
+                        <Badge variant={APPOINTMENT_STATUS[apt.estado].badge}>{APPOINTMENT_STATUS[apt.estado].label}</Badge>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-0.5">{APPOINTMENT_TYPES[apt.tipo]} · {apt.motivo}</p>
+                      {apt.notas && <p className="text-xs text-gray-400 mt-1">{apt.notas}</p>}
+                    </div>
+                    <FileText size={15} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
+                  </Link>
+                );
+              })}
             </div>
           )}
         </Card>

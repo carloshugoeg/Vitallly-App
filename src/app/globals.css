@@ -23,24 +23,52 @@ body {
 }
 
 @media print {
-  body * {
+
+  /* Oculta todo de forma más segura */
+  body {
     visibility: hidden;
   }
+
+  /* Muestra solo el reporte */
   #patient-report,
   #patient-report * {
     visibility: visible;
   }
+
+  /* IMPORTANTE: sin absolute */
   #patient-report {
-    position: absolute;
-    left: 0;
-    top: 0;
+    position: static;
     width: 100%;
     background: white;
   }
+
+  /* Oculta botones */
   .print\:hidden {
     display: none !important;
   }
+
+  /* Márgenes de hoja */
   @page {
     margin: 1cm;
+  }
+
+  /* Mejora colores al imprimir */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Evita cortes feos */
+  h1, h2, h3, h4 {
+    page-break-after: avoid;
+  }
+
+  table, tr, td {
+    page-break-inside: avoid;
+  }
+
+  /* Para usar manualmente si quieres forzar salto */
+  .page-break {
+    page-break-before: always;
   }
 }
