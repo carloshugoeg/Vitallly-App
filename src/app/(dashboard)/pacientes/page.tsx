@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { UserPlus, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import SearchBar from '@/components/ui/SearchBar';
 import Badge from '@/components/ui/Badge';
 import Spinner from '@/components/ui/Spinner';
@@ -13,6 +14,7 @@ import ErrorDisplay from '@/components/ui/ErrorDisplay';
 import { usePatients, deletePatient } from '@/hooks/usePatients';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { calculateAge } from '@/lib/utils';
+import type { Patient } from '@/types/api';
 
 const PAGE_SIZE = 20;
 
@@ -20,12 +22,15 @@ export default function PacientesPage() {
   const urlSearchParams = useSearchParams();
   const [search, setSearch] = useState(urlSearchParams.get('search') ?? '');
   const [page, setPage] = useState(1);
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const urlSearch = urlSearchParams.get('search') ?? '';
+
   useEffect(() => {
     setSearch(urlSearch);
     setPage(1);
   }, [urlSearch]);
-
 
   const debouncedSearch = useDebouncedValue(search);
   const { patients, meta, isLoading, error, mutate } = usePatients({
@@ -34,26 +39,27 @@ export default function PacientesPage() {
     pageSize: PAGE_SIZE,
   });
 
-  // Reset page when search changes
   const handleSearchChange = (value: string) => {
     setSearch(value);
     setPage(1);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('¿Está seguro de eliminar este paciente? Esta acción no se puede deshacer.')) return;
+  const handleDelete = async () => {
+    if (!patientToDelete) return;
+    setIsDeleting(true);
+    setDeleteError('');
     try {
-      await deletePatient(id);
+      await deletePatient(patientToDelete.id);
       mutate();
+      setPatientToDelete(null);
     } catch {
-      alert('Error al eliminar paciente');
+      setDeleteError('Error al eliminar paciente.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const hasLoadedOnce = useRef(false);
-  if (!isLoading) hasLoadedOnce.current = true;
-
-  if (!hasLoadedOnce.current) return <Spinner />;
+  if (isLoading && patients.length === 0) return <Spinner />;
   if (error) return <ErrorDisplay message="No se pudieron cargar los pacientes." onRetry={() => mutate()} />;
   const totalPages = meta ? Math.ceil(meta.total / meta.pageSize) : 1;
 
@@ -77,7 +83,7 @@ export default function PacientesPage() {
           <SearchBar
             value={search}
             onChange={handleSearchChange}
-            placeholder="Buscar por nombre, DPI o teléfono..."
+            placeholder="Buscar por nombre, DPI o telefono..."
           />
           {isLoading && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
@@ -92,7 +98,7 @@ export default function PacientesPage() {
               <tr className="border-b border-gray-100">
                 <th className="text-left py-3 px-4 font-medium text-gray-500">Paciente</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-500">DPI</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-500">Teléfono</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-500">Telefono</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-500">Edad</th>
                 <th className="text-right py-3 px-4 font-medium text-gray-500">Acciones</th>
               </tr>
@@ -114,7 +120,7 @@ export default function PacientesPage() {
                   <td className="py-3 px-4 text-gray-600 font-mono text-xs">{patient.dpi}</td>
                   <td className="py-3 px-4 text-gray-600">{patient.telefono}</td>
                   <td className="py-3 px-4">
-                    <Badge variant="gray">{calculateAge(patient.fechaNacimiento)} años</Badge>
+                    <Badge variant="gray">{calculateAge(patient.fechaNacimiento)} anios</Badge>
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-end gap-1">
@@ -129,7 +135,11 @@ export default function PacientesPage() {
                         </button>
                       </Link>
                       <button
-                        onClick={() => handleDelete(patient.id)}
+                        type="button"
+                        onClick={() => {
+                          setDeleteError('');
+                          setPatientToDelete(patient);
+                        }}
                         className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-red-600 transition-colors"
                       >
                         <Trash2 size={16} />
@@ -149,14 +159,14 @@ export default function PacientesPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-4">
             <p className="text-sm text-gray-500">
-              Página {page} de {totalPages}
+              Pagina {page} de {totalPages}
             </p>
             <div className="flex gap-2">
               <Button
                 variant="secondary"
                 size="sm"
                 disabled={page <= 1}
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => setPage((p) => p - 1)}
               >
                 <ChevronLeft size={16} />
                 Anterior
@@ -165,7 +175,7 @@ export default function PacientesPage() {
                 variant="secondary"
                 size="sm"
                 disabled={page >= totalPages}
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage((p) => p + 1)}
               >
                 Siguiente
                 <ChevronRight size={16} />
@@ -174,6 +184,31 @@ export default function PacientesPage() {
           </div>
         )}
       </Card>
+
+      <Modal isOpen={Boolean(patientToDelete)} onClose={() => setPatientToDelete(null)} title="Eliminar paciente">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Esta seguro de eliminar este paciente? Esta accion no se puede deshacer.
+          </p>
+          {patientToDelete && (
+            <div className="rounded-lg bg-gray-50 p-3 text-sm">
+              <p className="font-medium text-gray-900">{patientToDelete.nombre} {patientToDelete.apellido}</p>
+              <p className="text-gray-500">DPI: {patientToDelete.dpi}</p>
+            </div>
+          )}
+          {deleteError && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{deleteError}</p>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setPatientToDelete(null)} disabled={isDeleting}>
+              Cancelar
+            </Button>
+            <Button type="button" variant="danger" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? 'Eliminando...' : 'Eliminar'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
