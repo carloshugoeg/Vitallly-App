@@ -35,6 +35,7 @@ export default function CitasPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingAppointmentId, setEditingAppointmentId] = useState<string | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
+  const [blockedAppointmentId, setBlockedAppointmentId] = useState<string | null>(null);
 
   const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
   const [hoveredRect, setHoveredRect] = useState<DOMRect | null>(null);
@@ -140,6 +141,14 @@ export default function CitasPage() {
     e.preventDefault();
     e.stopPropagation();
     setAppointmentToDelete(appointment);
+  };
+
+  const handleBlockedAppointmentClick = (appointment: Appointment) => {
+    setBlockedAppointmentId(appointment.id);
+    showToast(`No se puede acceder a una cita ${APPOINTMENT_STATUS[appointment.estado].label.toLowerCase()}.`, 'error');
+    window.setTimeout(() => {
+      setBlockedAppointmentId((current) => (current === appointment.id ? null : current));
+    }, 260);
   };
 
   const handleConfirmDelete = async () => {
@@ -327,14 +336,23 @@ export default function CitasPage() {
                   motivo: apt.motivo ?? '',
                   appointmentId: apt.id,
                 });
+                const canAccessAppointment = apt.estado === 'programada';
                 return (
                   <div
                     key={apt.id}
-                    className="flex items-start gap-3 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-primary-50 transition-all group"
+                    className={`group relative flex items-start gap-3 overflow-hidden rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-primary-50 transition-all ${blockedAppointmentId === apt.id ? 'animate-appointment-denied' : ''}`}
                   >
+                    <div className={`absolute inset-y-0 left-0 w-1.5 ${APPOINTMENT_STATUS[apt.estado].dot} group-hover:bg-primary transition-colors`} />
                     <Link
                       href={`/consultas/nueva?${params.toString()}`}
-                      className="flex min-w-0 flex-1 items-start gap-4 p-4"
+                      onClick={(e) => {
+                        if (!canAccessAppointment) {
+                          e.preventDefault();
+                          handleBlockedAppointmentClick(apt);
+                        }
+                      }}
+                      aria-disabled={!canAccessAppointment}
+                      className={`flex min-w-0 flex-1 items-start gap-4 py-4 pl-5 pr-4 ${canAccessAppointment ? '' : 'cursor-not-allowed'}`}
                     >
                     <div className="flex items-center gap-1.5 text-sm text-gray-500 min-w-[60px]">
                       <Clock size={14} />
@@ -350,7 +368,7 @@ export default function CitasPage() {
                       <p className="text-sm text-gray-500 mt-0.5">{APPOINTMENT_TYPES[apt.tipo]} · {apt.motivo}</p>
                       {apt.notas && <p className="text-xs text-gray-400 mt-1">{apt.notas}</p>}
                     </div>
-                      <FileText size={15} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
+                      <FileText size={15} className={`text-primary transition-opacity shrink-0 mt-1 ${canAccessAppointment ? 'opacity-0 group-hover:opacity-100' : 'opacity-30'}`} />
                     </Link>
                     <div className="flex items-center gap-1 pr-3 pt-3">
                       <button
