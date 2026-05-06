@@ -10,6 +10,7 @@ import ErrorDisplay from '@/components/ui/ErrorDisplay';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useSession } from 'next-auth/react';
+import UserManualButton from '@/components/dashboard/UserManualButton';
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -40,6 +41,9 @@ export default function DashboardPage() {
         <TodayAppointments appointments={appointments} />
         <CalendarPreview appointments={appointments} />
       </div>
+
+      {/* Botón de manual de usuario - exclusivo del dashboard */}
+      <UserManualButton />
     </div>
   );
 }
