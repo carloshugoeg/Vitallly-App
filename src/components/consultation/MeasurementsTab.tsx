@@ -49,7 +49,6 @@ export default function MeasurementsTab({ talla, genero, edad, values, onChange,
 
   const pGrasa = parseFloat(values.porcentajeGrasa) || 0;
   const pAgua = parseFloat(values.porcentajeAgua) || 0;
-  const mMusculo = parseFloat(values.masaMusculo) || 0;
   const vFisica = parseInt(values.valoracionFisica) || 0;
   const mOsea = parseFloat(values.masaOsea) || 0;
   const gVisc = parseInt(values.grasaVisceral) || 0;

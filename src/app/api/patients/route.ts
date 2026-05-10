@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { withAuth } from '@/server/middleware/withAuth';
 import { listPatients, createPatient } from '@/server/services/patient.service';
 import { parseBody, parseSearchParams } from '@/server/middleware/withValidation';

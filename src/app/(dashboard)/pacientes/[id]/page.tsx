@@ -2,7 +2,7 @@
 
 import { use, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Edit, Phone, Mail, MapPin, AlertCircle, Pill, Heart, Activity, Calendar, ClipboardList, Utensils, BarChart3, Plus, Pencil, Trash2, Copy, FileText, Beaker } from 'lucide-react';
+import { ArrowLeft, Edit, Phone, Mail, MapPin, AlertCircle, Pill, Heart, Activity, Calendar, ClipboardList, Utensils, Plus, Pencil, Trash2, Copy, FileText, Beaker } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -24,7 +24,7 @@ import { NutritionalPlan } from '@/types/api';
 import { calculateAge, formatDate, getInitials } from '@/lib/utils';
 import { ACTIVITY_LEVELS, APPOINTMENT_TYPES, APPOINTMENT_STATUS } from '@/lib/constants';
 import { getIMCClassification } from '@/lib/calculations';
-import { classifyBodyFat, classifyVisceralFat, classifyWaterPercentage } from '@/lib/referenceRanges';
+import { classifyBodyFat, classifyVisceralFat } from '@/lib/referenceRanges';
 
 const tabs = ['General', 'Antropometria', 'Consultas', 'Citas', 'Planes Nutricionales', 'Metricas'];
 

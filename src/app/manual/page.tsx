@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ElementType, type ReactNode } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -29,19 +30,46 @@ interface ManualImageProps {
 }
 
 function ManualImage({ src, title, note }: ManualImageProps) {
+  const [hasImage, setHasImage] = useState(true);
+
   return (
-    <div className="rounded-lg border border-dashed border-primary/30 bg-primary-50/40 p-4">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 rounded-lg bg-white p-2 text-primary shadow-sm">
-          <ImageIcon size={18} />
-        </div>
-        <div>
-          <p className="font-semibold text-gray-900">{title}</p>
-          <p className="mt-1 text-sm text-gray-600">{note}</p>
-          <p className="mt-2 rounded-md bg-white px-3 py-2 font-mono text-xs text-primary">{src}</p>
-        </div>
+    <figure className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+      <div className="relative aspect-video bg-primary-50">
+        {hasImage ? (
+          <Image
+            src={src}
+            alt={title}
+            fill
+            sizes="(min-width: 1024px) 900px, 100vw"
+            onError={() => setHasImage(false)}
+            className="object-cover object-top"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center p-6">
+            <div className="max-w-md rounded-lg border border-dashed border-primary/30 bg-white/80 p-4 text-center">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary">
+                <ImageIcon size={20} />
+              </div>
+              <p className="text-sm font-semibold text-gray-900">Imagen pendiente</p>
+              <p className="mt-1 font-mono text-xs text-primary">{src}</p>
+            </div>
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/35 to-transparent" />
       </div>
-    </div>
+      <figcaption className="border-t border-gray-100 p-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 rounded-lg bg-primary-50 p-2 text-primary">
+            <ImageIcon size={16} />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">{title}</p>
+            <p className="mt-1 text-sm text-gray-600">{note}</p>
+            <p className="mt-2 rounded-md bg-gray-50 px-3 py-2 font-mono text-xs text-primary">{src}</p>
+          </div>
+        </div>
+      </figcaption>
+    </figure>
   );
 }
 
