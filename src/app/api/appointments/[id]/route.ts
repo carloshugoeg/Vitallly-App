@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { withAuth } from '@/server/middleware/withAuth';
 import { getAppointment, updateAppointment, deleteAppointment } from '@/server/services/appointment.service';
 import { parseBody } from '@/server/middleware/withValidation';

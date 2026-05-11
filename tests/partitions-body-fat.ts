@@ -15,7 +15,7 @@
  */
 
 import { classifyBodyFat } from '../src/lib/referenceRanges';
-import { c, header, section, info, runCase, summary } from './_runner';
+import { header, section, info, runCase, summary } from './_runner';
 
 const t0 = performance.now();
 let total = 0;

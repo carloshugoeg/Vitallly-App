@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { withAuth } from '@/server/middleware/withAuth';
 import { getPlan, updatePlan, deletePlan } from '@/server/services/nutritionalPlan.service';
 import { parseBody } from '@/server/middleware/withValidation';
