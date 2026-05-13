@@ -26,7 +26,7 @@ interface ManualSection {
 interface ManualImageProps {
   src: string;
   title: string;
-  note: string;
+  note?: string;
 }
 
 function ManualImage({ src, title, note }: ManualImageProps) {
@@ -50,24 +50,19 @@ function ManualImage({ src, title, note }: ManualImageProps) {
               <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary">
                 <ImageIcon size={20} />
               </div>
-              <p className="text-sm font-semibold text-gray-900">Imagen pendiente</p>
-              <p className="mt-1 font-mono text-xs text-primary">{src}</p>
+              <p className="text-sm font-semibold text-gray-900">{title}</p>
+              <p className="mt-2 rounded-md bg-gray-50 px-3 py-2 font-mono text-xs text-primary">{src}</p>
             </div>
           </div>
         )}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/35 to-transparent" />
       </div>
-      <figcaption className="border-t border-gray-100 p-4">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 rounded-lg bg-primary-50 p-2 text-primary">
-            <ImageIcon size={16} />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">{title}</p>
-            <p className="mt-1 text-sm text-gray-600">{note}</p>
-            <p className="mt-2 rounded-md bg-gray-50 px-3 py-2 font-mono text-xs text-primary">{src}</p>
-          </div>
-        </div>
+      <figcaption className="border-t border-gray-100 px-4 py-3">
+        <p className="text-sm font-semibold text-gray-900">{title}</p>
+        {note && <p className="mt-0.5 text-xs text-gray-500">{note}</p>}
+        {!hasImage && (
+          <p className="mt-2 rounded-md bg-gray-50 px-3 py-2 font-mono text-xs text-primary">{src}</p>
+        )}
       </figcaption>
     </figure>
   );
@@ -121,8 +116,8 @@ const sections: ManualSection[] = [
           />
           <ManualImage
             src="/manual/01-login.png"
-            title="Imagen requerida: pantalla de inicio de sesion"
-            note="Captura la vista donde el usuario escribe sus credenciales antes de entrar a Vitally."
+            title="Pantalla de inicio de sesion"
+            note="Vista de acceso donde el usuario ingresa sus credenciales para entrar a Vitally."
           />
         </section>
       </div>
@@ -156,8 +151,8 @@ const sections: ManualSection[] = [
         </div>
         <ManualImage
           src="/manual/02-dashboard.png"
-          title="Imagen requerida: dashboard principal"
-          note="Captura el dashboard completo con tarjetas de estadisticas, citas de hoy, calendario y botones de acceso."
+          title="Dashboard principal"
+          note="Vista general con estadisticas, citas del dia, calendario y accesos rapidos."
         />
         <section className="space-y-3">
           <h3 className="text-lg font-semibold text-gray-900">Notificaciones de citas</h3>
@@ -183,8 +178,8 @@ const sections: ManualSection[] = [
         </p>
         <ManualImage
           src="/manual/03-pacientes-lista.png"
-          title="Imagen requerida: lista de pacientes"
-          note="Captura la tabla de pacientes con los botones de ver, editar y eliminar."
+          title="Lista de pacientes"
+          note="Tabla con todos los pacientes registrados y sus acciones disponibles."
         />
 
         <section className="space-y-3">
@@ -199,8 +194,8 @@ const sections: ManualSection[] = [
           />
           <ManualImage
             src="/manual/04-paciente-nuevo.png"
-            title="Imagen requerida: formulario de nuevo paciente"
-            note="Captura el formulario completo o la parte superior con campos obligatorios visibles."
+            title="Formulario de nuevo paciente"
+            note="Campos de registro para ingresar un nuevo paciente al sistema."
           />
         </section>
 
@@ -212,8 +207,8 @@ const sections: ManualSection[] = [
           </p>
           <ManualImage
             src="/manual/05-paciente-detalle-general.png"
-            title="Imagen requerida: detalle general del paciente"
-            note="Captura la vista de detalle con las pestañas principales visibles."
+            title="Detalle general del paciente"
+            note="Ficha del paciente con pestañas de informacion, historial y seguimiento."
           />
         </section>
 
@@ -225,10 +220,26 @@ const sections: ManualSection[] = [
             composicion corporal y grasa visceral, filtradas por rango de fechas.
           </p>
           <div className="grid gap-4 lg:grid-cols-2">
-            <ManualImage src="/manual/06-paciente-antropometria.png" title="Imagen requerida: antropometria" note="Captura la tabla o historial antropometrico." />
-            <ManualImage src="/manual/07-paciente-planes.png" title="Imagen requerida: planes nutricionales" note="Captura la lista de planes y sus acciones." />
-            <ManualImage src="/manual/08-paciente-metricas.png" title="Imagen requerida: metricas" note="Captura las graficas de evolucion del paciente." />
-            <ManualImage src="/manual/09-eliminar-paciente.png" title="Imagen requerida: confirmacion de eliminar paciente" note="Captura el modal de confirmacion antes de eliminar." />
+            <ManualImage
+              src="/manual/06-paciente-antropometria.png"
+              title="Antropometria del paciente"
+              note="Historial de mediciones fisicas registradas en cada consulta."
+            />
+            <ManualImage
+              src="/manual/07-paciente-planes.png"
+              title="Planes nutricionales del paciente"
+              note="Lista de planes asignados con opciones de edicion, duplicado y eliminacion."
+            />
+            <ManualImage
+              src="/manual/08-paciente-metricas.png"
+              title="Metricas de evolucion"
+              note="Graficas de peso, IMC y composicion corporal filtradas por fecha."
+            />
+            <ManualImage
+              src="/manual/09-eliminar-paciente.png"
+              title="Confirmacion de eliminacion"
+              note="Modal de confirmacion antes de eliminar un paciente del sistema."
+            />
           </div>
         </section>
       </div>
@@ -247,8 +258,8 @@ const sections: ManualSection[] = [
         </p>
         <ManualImage
           src="/manual/10-citas-calendario.png"
-          title="Imagen requerida: calendario y agenda diaria"
-          note="Captura el modulo de citas con el calendario a la izquierda y las citas del dia a la derecha."
+          title="Calendario y agenda diaria"
+          note="Vista del modulo de citas con calendario mensual y detalle de citas del dia."
         />
 
         <section className="space-y-3">
@@ -264,8 +275,8 @@ const sections: ManualSection[] = [
           />
           <ManualImage
             src="/manual/11-cita-nueva-editar.png"
-            title="Imagen requerida: modal de nueva/editar cita"
-            note="Captura el modal de cita con los campos prellenados o listos para registrar."
+            title="Formulario de cita"
+            note="Modal para crear o editar una cita con todos sus campos disponibles."
           />
         </section>
 
@@ -299,8 +310,8 @@ const sections: ManualSection[] = [
           </p>
           <ManualImage
             src="/manual/12-consulta-mediciones.png"
-            title="Imagen requerida: mediciones de consulta"
-            note="Captura la pestaña o formulario de mediciones dentro de nueva consulta."
+            title="Mediciones de la consulta"
+            note="Formulario de datos antropometricos registrados durante la atencion."
           />
         </section>
 
@@ -312,8 +323,8 @@ const sections: ManualSection[] = [
           </p>
           <ManualImage
             src="/manual/13-consulta-notas-clinicas.png"
-            title="Imagen requerida: notas clinicas"
-            note="Captura el apartado donde se escriben notas, diagnostico y recomendaciones."
+            title="Notas clinicas"
+            note="Seccion para registrar observaciones, diagnostico y recomendaciones de la consulta."
           />
         </section>
 
@@ -325,8 +336,8 @@ const sections: ManualSection[] = [
           </p>
           <ManualImage
             src="/manual/14-consulta-plan-nutricional.png"
-            title="Imagen requerida: plan nutricional en consulta"
-            note="Captura el formulario donde se configura el plan y sus comidas."
+            title="Plan nutricional de la consulta"
+            note="Formulario de configuracion del plan alimenticio con comidas y macronutrientes."
           />
         </section>
       </div>
@@ -353,8 +364,8 @@ const sections: ManualSection[] = [
         />
         <ManualImage
           src="/manual/15-calculadora.png"
-          title="Imagen requerida: calculadora nutricional"
-          note="Captura la calculadora con campos y resultados visibles."
+          title="Calculadora nutricional"
+          note="Herramienta de calculo con campos de entrada y resultados estimados."
         />
       </div>
     ),
@@ -384,9 +395,6 @@ export default function ManualPage() {
               <h1 className="mt-1 text-3xl font-bold text-gray-900">Manual de Usuario</h1>
               <p className="mt-1 text-sm text-gray-500">Guia practica para el uso de los modulos principales.</p>
             </div>
-            <p className="max-w-md text-sm text-gray-500">
-              Agrega las capturas en <span className="font-mono text-primary">public/manual/</span> usando los nombres indicados en cada recuadro.
-            </p>
           </div>
         </header>
 
