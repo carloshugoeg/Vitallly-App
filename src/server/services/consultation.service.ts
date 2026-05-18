@@ -29,6 +29,8 @@ type ConsultationWithRelations = Consultation & {
 // Helpers
 // ---------------------------------------------------------------------------
 
+import { toPlanResponse } from './nutritionalPlan.service';
+
 /**
  * Converts a DB consultation (with relations) into the frontend format where
  * `antropometriaId` and `planNutricionalId` are the related record ids.
@@ -46,7 +48,7 @@ export function toConsultationResponse(c: ConsultationWithRelations) {
     antropometriaId: c.anthropometry?.id ?? null,
     planNutricionalId: c.nutritionalPlan?.id ?? null,
     anthropometry: c.anthropometry ?? null,
-    nutritionalPlan: c.nutritionalPlan ?? null,
+    nutritionalPlan: c.nutritionalPlan ? toPlanResponse(c.nutritionalPlan) : null,
     patient: c.patient ?? null,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,

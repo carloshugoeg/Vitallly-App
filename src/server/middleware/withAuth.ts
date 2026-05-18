@@ -107,9 +107,7 @@ export function withAuth(handler: RouteHandler, allowedRoles?: UserRole[]) {
           { status: 400 }
         );
       }
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Unhandled error:', error);
-      }
+      console.error('Unhandled error in withAuth:', error);
       return NextResponse.json(
         { error: { code: 'INTERNAL_ERROR', message: 'Error interno del servidor' } },
         { status: 500 }
