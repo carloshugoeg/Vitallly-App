@@ -75,14 +75,14 @@ function flattenPatientData(data: Record<string, unknown>) {
 
   const flat: Record<string, unknown> = { ...rest };
 
-  if (contactoEmergencia && typeof contactoEmergencia === 'object') {
+  if (contactoEmergencia && typeof contactoEmergencia === 'object' && !Array.isArray(contactoEmergencia)) {
     const ce = contactoEmergencia as Record<string, unknown>;
     if (ce.nombre !== undefined) flat.contactoEmergenciaNombre = ce.nombre;
     if (ce.telefono !== undefined) flat.contactoEmergenciaTelefono = ce.telefono;
     if (ce.relacion !== undefined) flat.contactoEmergenciaRelacion = ce.relacion;
   }
 
-  if (estiloVida && typeof estiloVida === 'object') {
+  if (estiloVida && typeof estiloVida === 'object' && !Array.isArray(estiloVida)) {
     const ev = estiloVida as Record<string, unknown>;
     if (ev.nivelActividad !== undefined) flat.nivelActividad = ev.nivelActividad;
     if (ev.horasSueno !== undefined) flat.horasSueno = ev.horasSueno;
@@ -91,7 +91,7 @@ function flattenPatientData(data: Record<string, unknown>) {
     if (ev.ejercicioSemanal !== undefined) flat.ejercicioSemanal = ev.ejercicioSemanal;
   }
 
-  if (perfilClinico && typeof perfilClinico === 'object') {
+  if (perfilClinico && typeof perfilClinico === 'object' && !Array.isArray(perfilClinico)) {
     const pc = perfilClinico as Record<string, unknown>;
     if (pc.estatura !== undefined) flat.estatura = pc.estatura;
     if (pc.patologias !== undefined) flat.patologias = pc.patologias;
@@ -160,7 +160,7 @@ export async function createPatient(tenantId: string, data: Record<string, unkno
   const flat = flattenPatientData(data) as Prisma.PatientUncheckedCreateInput;
 
   if (!flat.fechaRegistro) {
-    flat.fechaRegistro = new Date().toISOString().split('T')[0];
+    flat.fechaRegistro = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guatemala' }).format(new Date());
   }
 
   const patient = await prisma.patient.create({
@@ -187,7 +187,9 @@ export async function updatePatient(
     throw new NotFoundError('Paciente');
   }
 
-  const flat = flattenPatientData(data) as Prisma.PatientUncheckedUpdateInput;
+  const { id: _id, tenantId: _tenantId, createdAt: _createdAt, deletedAt: _deletedAt, ...safeData } = data;
+
+  const flat = flattenPatientData(safeData) as Prisma.PatientUncheckedUpdateInput;
 
   const patient = await prisma.patient.update({
     where: { id },

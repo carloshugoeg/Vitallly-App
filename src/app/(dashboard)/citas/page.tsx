@@ -233,7 +233,7 @@ export default function CitasPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Calendar */}
         <Card className="col-span-1">
           <div className="flex items-center justify-between mb-4">
@@ -359,7 +359,7 @@ export default function CitasPage() {
                       <span className="font-medium">{apt.hora}</span>
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                         <p className="font-medium text-gray-900">
                           {apt.patient ? `${apt.patient.nombre} ${apt.patient.apellido}` : 'Paciente'}
                         </p>
@@ -402,11 +402,11 @@ export default function CitasPage() {
       <Modal isOpen={showModal} onClose={closeAppointmentModal} title={editingAppointmentId ? 'Editar Cita' : 'Nueva Cita'}>
         <form onSubmit={handleSaveAppointment} className="space-y-4">
           <Select id="appt-patient" label="Paciente" options={patientOptions} value={newAppt.pacienteId} onChange={(e) => setNewAppt({ ...newAppt, pacienteId: e.target.value })} required />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input id="appt-date" label="Fecha" type="date" value={newAppt.fecha} onChange={(e) => setNewAppt({ ...newAppt, fecha: e.target.value })} required />
             <Input id="appt-time" label="Hora" type="time" value={newAppt.hora} onChange={(e) => setNewAppt({ ...newAppt, hora: e.target.value })} required />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select id="appt-type" label="Tipo" options={typeOptions} value={newAppt.tipo} onChange={(e) => setNewAppt({ ...newAppt, tipo: e.target.value })} />
             <Select id="appt-status" label="Estado" options={statusOptions} value={newAppt.estado} onChange={(e) => setNewAppt({ ...newAppt, estado: e.target.value })} />
           </div>

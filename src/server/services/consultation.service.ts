@@ -146,6 +146,12 @@ export async function createConsultation(
   },
 ) {
   const { anthropometry: anthroData, nutritionalPlan: planData, ...consultationData } = data;
+  const patient = await prisma.patient.findFirst({
+    where: { id: consultationData.pacienteId, tenantId, deletedAt: null },
+  });
+  if (!patient) {
+    throw new NotFoundError('Paciente');
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     // 1. Create the consultation
@@ -220,7 +226,7 @@ export async function updateConsultation(
     diagnostico?: string;
     recomendaciones?: string;
     proximaCita?: string | null;
-    anthropometry?: Record<string, unknown>;
+    anthropometry?: Record<string, unknown> | null;
     nutritionalPlan?: Record<string, unknown>;
   },
 ) {
@@ -234,21 +240,34 @@ export async function updateConsultation(
   }
 
   const { anthropometry: anthroData, nutritionalPlan: planData, ...consultationData } = data;
+  // Prevent Over-posting / Tenant Injection
+  const { id: _id, tenantId: _tenantId, createdAt: _createdAt, deletedAt: _deletedAt, ...safeConsultationData } = consultationData as any;
+  const safeAnthroData = anthroData 
+    ? (({ id, tenantId, consultaId, createdAt, deletedAt, ...rest }) => rest)(anthroData as any) 
+    : undefined;
+  const safePlanData = planData 
+    ? (({ id, tenantId, consultaId, createdAt, deletedAt, ...rest }) => rest)(planData as any) 
+    : undefined;
 
   const result = await prisma.$transaction(async (tx) => {
     // 1. Update the consultation
     const consultation = await tx.consultation.update({
       where: { id },
-      data: consultationData as Prisma.ConsultationUncheckedUpdateInput,
+      data: safeConsultationData as Prisma.ConsultationUncheckedUpdateInput,
     });
 
-    // 2. Upsert anthropometry if provided
+    // 2. Upsert or delete anthropometry
     let anthropometry: Anthropometry | null = existing.anthropometry;
-    if (anthroData) {
+    if (anthroData === null) {
+      if (existing.anthropometry) {
+        await tx.anthropometry.delete({ where: { id: existing.anthropometry.id } });
+        anthropometry = null;
+      }
+    } else if (safeAnthroData) {
       if (existing.anthropometry) {
         anthropometry = await tx.anthropometry.update({
           where: { id: existing.anthropometry.id },
-          data: anthroData as Prisma.AnthropometryUncheckedUpdateInput,
+          data: safeAnthroData as Prisma.AnthropometryUncheckedUpdateInput,
         });
       } else {
         anthropometry = await tx.anthropometry.create({
@@ -257,7 +276,7 @@ export async function updateConsultation(
             pacienteId: existing.pacienteId,
             consultaId: id,
             fecha: consultation.fecha,
-            ...anthroData,
+            ...safeAnthroData,
           } as Prisma.AnthropometryUncheckedCreateInput,
         });
       }
@@ -265,8 +284,8 @@ export async function updateConsultation(
 
     // 3. Upsert nutritional plan if provided
     let nutritionalPlan: NutritionalPlan | null = existing.nutritionalPlan;
-    if (planData) {
-      const { comidas, ...planRest } = planData;
+    if (safePlanData) {
+      const { comidas, ...planRest } = safePlanData;
       if (existing.nutritionalPlan) {
         nutritionalPlan = await tx.nutritionalPlan.update({
           where: { id: existing.nutritionalPlan.id },

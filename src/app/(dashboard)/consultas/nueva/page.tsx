@@ -176,7 +176,7 @@ export default function NuevaConsultaPage() {
           <div className="mt-3 flex gap-4 text-sm text-gray-500">
             <span>Estatura: <strong>{talla} cm</strong></span>
             <span>Genero: <strong>{genero === 'F' ? 'Femenino' : 'Masculino'}</strong></span>
-            <span>Edad: <strong>{edad} anios</strong></span>
+            <span>Edad: <strong>{edad} años</strong></span>
           </div>
         )}
       </Card>

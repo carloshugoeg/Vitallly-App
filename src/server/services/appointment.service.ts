@@ -116,6 +116,14 @@ export async function createAppointment(
     duracion?: number;
   },
 ) {
+  const patient = await prisma.patient.findFirst({
+    where: { id: data.pacienteId, tenantId, deletedAt: null },
+  });
+
+  if (!patient) {
+    throw new NotFoundError('Paciente');
+  }
+
   const appointment = await prisma.appointment.create({
     data: {
       tenantId,
@@ -149,9 +157,12 @@ export async function updateAppointment(
     throw new NotFoundError('Cita');
   }
 
+  // Prevent Over-posting / Tenant Injection
+  const { id: _id, tenantId: _tenantId, createdAt: _createdAt, deletedAt: _deletedAt, ...safeData } = data;
+
   const appointment = await prisma.appointment.update({
     where: { id },
-    data: data as Prisma.AppointmentUncheckedUpdateInput,
+    data: safeData as Prisma.AppointmentUncheckedUpdateInput,
     include: {
       patient: { select: { id: true, nombre: true, apellido: true } },
     },
@@ -192,9 +203,24 @@ export async function checkOverlap(
   duracion: number,
   excludeId?: string,
 ) {
+  const toMinutes = (time: string): number => {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  const newStart = toMinutes(hora);
+  const newEnd = newStart + duracion;
+
+  const dates = [fecha];
+  if (newEnd > 1440) {
+    const d = new Date(`${fecha}T00:00:00`);
+    d.setDate(d.getDate() + 1);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+
   const where: Prisma.AppointmentWhereInput = {
     tenantId,
-    fecha,
+    fecha: dates.length > 1 ? { in: dates } : fecha,
     deletedAt: null,
     estado: { not: 'cancelada' },
   };
@@ -210,18 +236,14 @@ export async function checkOverlap(
     },
   });
 
-  const toMinutes = (time: string): number => {
-    const [h, m] = time.split(':').map(Number);
-    return h * 60 + m;
-  };
-
-  const newStart = toMinutes(hora);
-  const newEnd = newStart + duracion;
-
   const overlapping = existing.filter((appt) => {
     const apptStart = toMinutes(appt.hora);
     const apptEnd = apptStart + appt.duracion;
-    return newStart < apptEnd && newEnd > apptStart;
+    if (appt.fecha === fecha) {
+      return newStart < apptEnd && newEnd > apptStart;
+    }
+    // next-day appointment: shift its window by 1440 to compare in the same scale
+    return newStart < (apptEnd + 1440) && newEnd > (apptStart + 1440);
   });
 
   return {

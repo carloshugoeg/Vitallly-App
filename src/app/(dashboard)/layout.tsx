@@ -22,6 +22,8 @@ export function usePatientContext() {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const { status } = useSession();
   const router = useRouter();
   const contextValue = useMemo(() => ({ selectedPatientId, setSelectedPatientId }), [selectedPatientId]);
@@ -42,10 +44,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <PatientContext.Provider value={contextValue}>
       <div className="min-h-screen bg-cream">
-        <Sidebar />
-        <div className="ml-[260px]">
-          <TopBar />
-          <main className="p-6">{children}</main>
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-30 md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+        <div className="md:ml-[260px] overflow-x-hidden">
+          {!isBannerDismissed && (
+            <div className="md:hidden flex items-center justify-between gap-2 bg-warning/10 border-b border-warning/20 px-4 py-2.5 text-xs text-amber-700">
+              <span>Esta aplicación está optimizada para escritorio. Algunas funciones pueden verse limitadas en pantallas pequeñas.</span>
+              <button
+                onClick={() => setIsBannerDismissed(true)}
+                className="shrink-0 p-1 rounded hover:bg-warning/20 font-bold leading-none"
+                aria-label="Cerrar aviso"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          <TopBar onMenuClick={() => setIsSidebarOpen(true)} />
+          <main className="p-4 md:p-6">{children}</main>
         </div>
       </div>
     </PatientContext.Provider>

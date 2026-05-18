@@ -67,7 +67,7 @@ export default function MeasurementsTab({ talla, genero, edad, values, onChange,
   return (
     <div className="space-y-6">
       {/* Auto-calculated summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="text-center bg-gray-50">
           <p className="text-xs text-gray-500">IMC (auto)</p>
           {imc > 0 && imcClass ? (
@@ -100,7 +100,7 @@ export default function MeasurementsTab({ talla, genero, edad, values, onChange,
       {/* Bioimpedance scale inputs */}
       <Card>
         <h4 className="text-sm font-semibold text-gray-900 mb-4">Bascula de Bioimpedancia</h4>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <Input id="m-peso" label="Peso (kg)" type="number" step="0.1" value={values.peso} onChange={(e) => onChange('peso', e.target.value)} disabled={readOnly} />
           </div>
@@ -159,7 +159,7 @@ export default function MeasurementsTab({ talla, genero, edad, values, onChange,
       {/* Manual measurements */}
       <Card>
         <h4 className="text-sm font-semibold text-gray-900 mb-4">Mediciones Manuales</h4>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Input id="m-cintura" label="Cintura (cm)" type="number" step="0.1" value={values.circunferenciaCintura} onChange={(e) => onChange('circunferenciaCintura', e.target.value)} disabled={readOnly} />
           <Input id="m-cadera" label="Cadera (cm)" type="number" step="0.1" value={values.circunferenciaCadera} onChange={(e) => onChange('circunferenciaCadera', e.target.value)} disabled={readOnly} />
           <div className="col-span-1">
@@ -232,7 +232,7 @@ export default function MeasurementsTab({ talla, genero, edad, values, onChange,
             {/* Physical assessment */}
             <div>
               <p className="font-medium text-gray-700 mb-1">Valoracion Fisica (1-9)</p>
-              <div className="grid grid-cols-3 gap-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
                 <span className="text-red-600">1: Obesidad oculta</span>
                 <span className="text-red-600">2: Obeso</span>
                 <span className="text-yellow-600">3: Robusto</span>

@@ -25,7 +25,7 @@ export default function ClinicalNotesTab({ values, onChange, patient, readOnly =
       {patient?.perfilClinico && (
         <Card>
           <h4 className="text-sm font-semibold text-gray-900 mb-3">Perfil Clinico del Paciente</h4>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             {patient.perfilClinico.patologias.length > 0 && (
               <div>
                 <p className="text-xs text-gray-500 font-medium mb-1">Patologias</p>

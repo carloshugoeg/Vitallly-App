@@ -13,16 +13,17 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { formatDate } from '@/lib/utils';
 import { getIMCClassification } from '@/lib/calculations';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZES = [25, 50];
 
 export default function ConsultasPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const debouncedSearch = useDebouncedValue(search);
   const { consultations, meta, isLoading, error, mutate } = useConsultations({
     search: debouncedSearch,
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
   });
 
   const handleSearchChange = (value: string) => {
@@ -107,11 +108,23 @@ export default function ConsultasPage() {
           <p className="text-center text-gray-500 py-8">No se encontraron consultas.</p>
         )}
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-4">
-            <p className="text-sm text-gray-500">
-              Página {page} de {totalPages}
-            </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-100 mt-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Mostrar</span>
+            {PAGE_SIZES.map((s) => (
+              <button
+                key={s}
+                onClick={() => { setPageSize(s); setPage(1); }}
+                className={`px-2.5 py-1 rounded text-sm font-medium transition-colors ${
+                  pageSize === s ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-gray-500">Página {page} de {totalPages}</p>
             <div className="flex gap-2">
               <Button
                 variant="secondary"
@@ -133,7 +146,7 @@ export default function ConsultasPage() {
               </Button>
             </div>
           </div>
-        )}
+        </div>
       </Card>
     </div>
   );

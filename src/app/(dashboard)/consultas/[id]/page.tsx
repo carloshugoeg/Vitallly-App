@@ -76,7 +76,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Patient info */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {patient && (
           <Card>
             <div className="flex items-center gap-3 mb-3">

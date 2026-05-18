@@ -15,6 +15,7 @@ export { calculatePesoIdeal, calculateIndiceCinturaCadera } from './referenceRan
  * Fórmula OMS: peso(kg) / talla(m)^2
  */
 export function calculateIMC(peso: number, tallaCm: number): number {
+  if (peso <= 0 || tallaCm <= 0) return 0;
   const tallaM = tallaCm / 100;
   return Number((peso / (tallaM * tallaM)).toFixed(2));
 }
@@ -39,6 +40,7 @@ export function calculateTMBHarrisBenedict(
   edad: number,
   genero: 'M' | 'F'
 ): number {
+  if (peso <= 0 || tallaCm <= 0 || edad <= 0) return 0;
   if (genero === 'M') {
     return 88.362 + 13.397 * peso + 4.799 * tallaCm - 5.677 * edad;
   }
@@ -57,6 +59,7 @@ export function calculateTMBMifflinStJeor(
   edad: number,
   genero: 'M' | 'F'
 ): number {
+  if (peso <= 0 || tallaCm <= 0 || edad <= 0) return 0;
   if (genero === 'M') {
     return 10 * peso + 6.25 * tallaCm - 5 * edad + 5;
   }

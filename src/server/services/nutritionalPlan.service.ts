@@ -172,6 +172,14 @@ export async function createStandalonePlan(
   tenantId: string,
   data: Record<string, unknown>,
 ) {
+  const patient = await prisma.patient.findFirst({
+    where: { id: data.pacienteId as string, tenantId, deletedAt: null },
+  });
+
+  if (!patient) {
+    throw new NotFoundError('Paciente');
+  }
+
   const { comidas, ...rest } = data;
 
   const plan = await prisma.nutritionalPlan.create({
@@ -202,7 +210,7 @@ export async function updatePlan(
     throw new NotFoundError('Plan nutricional');
   }
 
-  const { comidas, ...rest } = data;
+  const { id: _id, tenantId: _tenantId, createdAt: _createdAt, deletedAt: _deletedAt, consultaId: _consultaId, comidas, ...rest } = data;
 
   const plan = await prisma.nutritionalPlan.update({
     where: { id },

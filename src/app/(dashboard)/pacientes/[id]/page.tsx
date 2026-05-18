@@ -139,7 +139,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Link href="/pacientes" className="p-2 rounded-lg hover:bg-white transition-colors">
             <ArrowLeft size={20} className="text-gray-500" />
@@ -150,21 +150,21 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{patient.nombre} {patient.apellido}</h1>
-              <p className="text-sm text-gray-500">{edad} anios · {patient.genero === 'F' ? 'Femenino' : 'Masculino'} · {patient.ocupacion}</p>
+              <p className="text-sm text-gray-500">{edad} años · {patient.genero === 'F' ? 'Femenino' : 'Masculino'} · {patient.ocupacion}</p>
             </div>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setShowReport(true)}><FileText size={16} /> Generar Reporte</Button>
+          <Button variant="secondary" onClick={() => setShowReport(true)}><FileText size={16} /><span className="hidden sm:inline"> Generar Reporte</span></Button>
           <Link href={`/pacientes/${id}/editar`}>
-            <Button variant="secondary"><Edit size={16} /> Editar</Button>
+            <Button variant="secondary"><Edit size={16} /><span className="hidden sm:inline"> Editar</span></Button>
           </Link>
         </div>
       </div>
 
       {/* Quick stats */}
       {latestAnthro && (
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Card className="text-center">
             <p className="text-sm text-gray-500">Peso Actual</p>
             <p className="text-xl font-bold text-gray-900">{latestAnthro.peso} kg</p>
@@ -200,7 +200,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Tab content */}
       {activeTab === 'General' && (
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Phone size={16} /> Contacto</h3>
             <div className="space-y-2 text-sm">
@@ -258,9 +258,9 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           </Card>
 
           {/* Perfil Clinico Card */}
-          <Card className="col-span-2">
+          <Card className="col-span-1 md:col-span-2">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Beaker size={16} /> Perfil Clinico Nutricional</h3>
-            <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="text-xs text-gray-500 font-medium mb-1">Estatura</p>
                 <p className="font-medium">{patient.perfilClinico.estatura} cm</p>
@@ -309,7 +309,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           </Card>
 
           {patient.notas && (
-            <Card className="col-span-2">
+            <Card className="col-span-1 md:col-span-2">
               <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2"><AlertCircle size={16} /> Notas</h3>
               <p className="text-sm text-gray-600">{patient.notas}</p>
             </Card>
@@ -383,7 +383,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
           </div>
           {patientPlans.map((plan) => (
             <Card key={plan.id}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2">
                   <Utensils size={16} className="text-primary" />
                   <span className="font-medium text-gray-900">{formatDate(plan.fecha)}</span>
@@ -432,7 +432,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
       {activeTab === 'Metricas' && (
         <div className="space-y-6">
           <Card>
-            <div className="flex items-end gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
               <Input id="m-from" label="Desde" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
               <Input id="m-to" label="Hasta" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </div>
@@ -443,7 +443,7 @@ export default function PatientDetailPage({ params }: { params: Promise<{ id: st
               <p className="text-center text-gray-500 py-12">No hay datos para el rango de fechas seleccionado.</p>
             </Card>
           ) : (
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <h3 className="font-semibold text-gray-900 mb-4">Evolucion de Peso (kg)</h3>
                 <div className="h-64">

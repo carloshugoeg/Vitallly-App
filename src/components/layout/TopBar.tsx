@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Bell, User } from 'lucide-react';
+import { Search, Bell, User, Menu } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { usePatients } from '@/hooks/usePatients';
@@ -20,7 +20,7 @@ type WindowWithWebkitAudio = Window & {
   webkitAudioContext?: typeof AudioContext;
 };
 
-export default function TopBar() {
+export default function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const { data: session } = useSession();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -183,8 +183,16 @@ export default function TopBar() {
       : 'Nutricionista';
 
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6">
-      <div ref={containerRef} className="relative flex-1 max-w-xl">
+    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 md:px-6">
+      <button
+        type="button"
+        onClick={onMenuClick}
+        className="md:hidden p-2 rounded-lg hover:bg-gray-50 transition-colors mr-2 shrink-0"
+        aria-label="Abrir menú"
+      >
+        <Menu size={22} className="text-gray-600" />
+      </button>
+      <div ref={containerRef} className="relative flex-1 max-w-xs sm:max-w-xl">
         <form onSubmit={handleSearch}>
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
           <input
@@ -293,7 +301,7 @@ export default function TopBar() {
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
             <User size={16} className="text-white" />
           </div>
-          <div>
+          <div className="hidden sm:block">
             <p className="text-sm font-medium text-gray-900">{userName}</p>
             <p className="text-xs text-gray-500">{userRole}</p>
           </div>

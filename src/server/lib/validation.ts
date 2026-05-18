@@ -162,14 +162,20 @@ export const consultationCreateSchema = z.object({
     restricciones: z.array(z.string()).optional().default([]),
     suplementos: z.array(z.string()).optional().default([]),
     notas: z.string().optional().default(''),
-  }).optional(),
+  }).refine(
+    d => {
+      const sum = d.proteinasPorcentaje + d.carbohidratosPorcentaje + d.grasasPorcentaje;
+      return sum === 0 || sum === 100;
+    },
+    { message: 'Los porcentajes de macronutrientes deben sumar 100%', path: ['proteinasPorcentaje'] },
+  ).optional(),
 });
 
 export const consultationUpdateSchema = consultationCreateSchema.partial();
 
 // ─── Planes Nutricionales ──────────────────────────────
 
-export const nutritionalPlanCreateSchema = z.object({
+const nutritionalPlanBaseSchema = z.object({
   pacienteId: z.string().min(1),
   fecha: z.string().min(1),
   objetivo: z.string().optional().default(''),
@@ -190,15 +196,18 @@ export const nutritionalPlanCreateSchema = z.object({
   notas: z.string().optional().default(''),
 });
 
-export const nutritionalPlanUpdateSchema = nutritionalPlanCreateSchema.partial();
+export const nutritionalPlanCreateSchema = nutritionalPlanBaseSchema.refine(
+  d => {
+    const sum = d.proteinasPorcentaje + d.carbohidratosPorcentaje + d.grasasPorcentaje;
+    return sum === 0 || sum === 100;
+  },
+  { message: 'Los porcentajes de macronutrientes deben sumar 100%', path: ['proteinasPorcentaje'] },
+);
+
+export const nutritionalPlanUpdateSchema = nutritionalPlanBaseSchema.partial();
 
 // ─── Calculadora ───────────────────────────────────────
 
-/**
- * Calculadora nutricional: calcula TMB, GET y distribución de macros.
- * Los porcentajes de macros deben sumar 100; el frontend lo valida,
- * pero aquí se aceptan individualmente por flexibilidad.
- */
 export const calculatorSchema = z.object({
   peso: z.number().positive().max(500),
   tallaCm: z.number().positive().max(300),
@@ -209,7 +218,10 @@ export const calculatorSchema = z.object({
   proteinasPct: z.number().min(0).max(100).optional().default(30),
   carbohidratosPct: z.number().min(0).max(100).optional().default(40),
   grasasPct: z.number().min(0).max(100).optional().default(30),
-});
+}).refine(
+  d => d.proteinasPct + d.carbohidratosPct + d.grasasPct === 100,
+  { message: 'Los porcentajes de macronutrientes deben sumar 100%', path: ['proteinasPct'] },
+);
 
 /** Guarda resultados de la calculadora como plan nutricional independiente del paciente. */
 export const saveToPatientSchema = z.object({

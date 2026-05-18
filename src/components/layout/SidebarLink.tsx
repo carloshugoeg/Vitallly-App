@@ -9,15 +9,17 @@ interface SidebarLinkProps {
   href: string;
   icon: LucideIcon;
   label: string;
+  onClick?: () => void;
 }
 
-export default function SidebarLink({ href, icon: Icon, label }: SidebarLinkProps) {
+export default function SidebarLink({ href, icon: Icon, label, onClick }: SidebarLinkProps) {
   const pathname = usePathname();
   const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
 
   return (
     <Link
       href={href}
+      onClick={onClick}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
         'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { prisma } from '@/server/lib/prisma';
+import { NotFoundError } from '@/server/lib/errors';
 import type { Prisma } from '@/generated/prisma/client';
 import {
   calculateIMC,
@@ -99,6 +100,14 @@ export function calculate(params: CalculateParams) {
  * Save calculator results as a new standalone NutritionalPlan for a patient.
  */
 export async function saveToPatient(tenantId: string, data: SaveToPatientData) {
+  const patient = await prisma.patient.findFirst({
+    where: { id: data.pacienteId, tenantId, deletedAt: null },
+  });
+
+  if (!patient) {
+    throw new NotFoundError('Paciente');
+  }
+
   const today = new Date().toISOString().split('T')[0]; // yyyy-MM-dd
 
   const plan = await prisma.nutritionalPlan.create({

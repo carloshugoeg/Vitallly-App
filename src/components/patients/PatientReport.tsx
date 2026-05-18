@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
 import Button from '@/components/ui/Button';
 import { Patient, Anthropometry, NutritionalPlan, Consultation } from '@/types/api';
 import { calculateAge, formatDate, formatDateLong } from '@/lib/utils';
 import { getIMCClassification } from '@/lib/calculations';
 import { classifyBodyFat, classifyVisceralFat } from '@/lib/referenceRanges';
-import { Printer } from 'lucide-react';
+import { Printer, Share2 } from 'lucide-react';
 
 interface PatientReportProps {
   patient: Patient;
@@ -18,6 +18,7 @@ interface PatientReportProps {
 
 export default function PatientReport({ patient, anthropometry, plans, consultations }: PatientReportProps) {
   const reportRef = useRef<HTMLDivElement>(null);
+  const [sharing, setSharing] = useState(false);
   const edad = calculateAge(patient.fechaNacimiento);
 
   const { sortedAnthro, latest, first, latestPlan, weightData, bmiData } = useMemo(() => {
@@ -33,7 +34,15 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
     };
   }, [anthropometry, plans]);
 
-  const handlePrint = () => {
+  const getPdfFileName = () => {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yy = String(today.getFullYear()).slice(-2);
+    return `${patient.nombre} ${patient.apellido} ${dd}-${mm}-${yy}`;
+  };
+
+  const triggerPrint = () => {
     const report = reportRef.current;
     if (!report) return;
 
@@ -63,10 +72,10 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
       <!doctype html>
       <html>
         <head>
-          <title>Reporte del Paciente</title>
+          <title>${getPdfFileName()}</title>
           ${styles}
           <style>
-            @page { margin: 1cm; }
+            @page { size: letter; margin: 1cm; }
             html, body {
               margin: 0 !important;
               padding: 0 !important;
@@ -122,9 +131,78 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
     setTimeout(printReport, 1000);
   };
 
+  const handlePrint = () => triggerPrint();
+
+  const handleShare = async () => {
+    if (!reportRef.current) return;
+    setSharing(true);
+    try {
+      const [{ toPng }, { default: jsPDF }] = await Promise.all([
+        import('html-to-image'),
+        import('jspdf'),
+      ]);
+
+      const margin = 10;
+      const pageWidth = 215.9;
+      const pageHeight = 279.4;
+      const contentWidth = pageWidth - 2 * margin;
+      const scale = contentWidth / reportRef.current.offsetWidth;
+
+      const pdf = new jsPDF('p', 'mm', 'letter');
+      const sections = Array.from(reportRef.current.children) as HTMLElement[];
+      const parentRect = reportRef.current.getBoundingClientRect();
+      let currentY = margin;
+
+      for (let i = 0; i < sections.length; i++) {
+        const section = sections[i];
+
+        if (i > 0) {
+          const prevBottom = sections[i - 1].getBoundingClientRect().bottom - parentRect.top;
+          const currTop = section.getBoundingClientRect().top - parentRect.top;
+          currentY += (currTop - prevBottom) * scale;
+        }
+
+        const sectionHeightMm = section.offsetHeight * scale;
+
+        if (currentY + sectionHeightMm > pageHeight - margin) {
+          pdf.addPage();
+          currentY = margin;
+        }
+
+        const dataUrl = await toPng(section, { backgroundColor: '#ffffff', pixelRatio: 2 });
+        pdf.addImage(dataUrl, 'PNG', margin, currentY, contentWidth, sectionHeightMm);
+        currentY += sectionHeightMm;
+      }
+
+      const blob = pdf.output('blob');
+      const fileName = `${getPdfFileName()}.pdf`;
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: fileName });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') console.error('Share failed:', err);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div>
-      <div className="flex justify-end mb-4 print:hidden">
+      <div className="flex gap-2 justify-end mb-4 print:hidden">
+        <Button variant="secondary" onClick={handleShare} disabled={sharing}>
+          <Share2 size={16} /> {sharing ? 'Generando...' : 'Compartir'}
+        </Button>
         <Button onClick={handlePrint}><Printer size={16} /> Imprimir / Guardar PDF</Button>
       </div>
 
@@ -140,7 +218,7 @@ export default function PatientReport({ patient, anthropometry, plans, consultat
           <h2 className="text-base font-semibold text-gray-900 mb-3 border-b pb-1">Informacion del Paciente</h2>
           <div className="grid grid-cols-2 gap-x-6 gap-y-1">
             <p><span className="text-gray-500">Nombre:</span> {patient.nombre} {patient.apellido}</p>
-            <p><span className="text-gray-500">Edad:</span> {edad} anios</p>
+            <p><span className="text-gray-500">Edad:</span> {edad} años</p>
             <p><span className="text-gray-500">Genero:</span> {patient.genero === 'F' ? 'Femenino' : 'Masculino'}</p>
             <p><span className="text-gray-500">DPI:</span> {patient.dpi}</p>
             <p><span className="text-gray-500">Telefono:</span> {patient.telefono}</p>
