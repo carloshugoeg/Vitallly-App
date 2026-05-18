@@ -187,7 +187,11 @@ export async function updatePatient(
     throw new NotFoundError('Paciente');
   }
 
-  const { id: _id, tenantId: _tenantId, createdAt: _createdAt, deletedAt: _deletedAt, ...safeData } = data;
+  const safeData = { ...data };
+  delete safeData.id;
+  delete safeData.tenantId;
+  delete safeData.createdAt;
+  delete safeData.deletedAt;
 
   const flat = flattenPatientData(safeData) as Prisma.PatientUncheckedUpdateInput;
 

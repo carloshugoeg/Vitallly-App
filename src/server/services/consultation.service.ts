@@ -241,13 +241,31 @@ export async function updateConsultation(
 
   const { anthropometry: anthroData, nutritionalPlan: planData, ...consultationData } = data;
   // Prevent Over-posting / Tenant Injection
-  const { id: _id, tenantId: _tenantId, createdAt: _createdAt, deletedAt: _deletedAt, ...safeConsultationData } = consultationData as any;
-  const safeAnthroData = anthroData 
-    ? (({ id, tenantId, consultaId, createdAt, deletedAt, ...rest }) => rest)(anthroData as any) 
-    : undefined;
-  const safePlanData = planData 
-    ? (({ id, tenantId, consultaId, createdAt, deletedAt, ...rest }) => rest)(planData as any) 
-    : undefined;
+  const safeConsultationData = { ...consultationData } as Record<string, unknown>;
+  delete safeConsultationData.id;
+  delete safeConsultationData.tenantId;
+  delete safeConsultationData.createdAt;
+  delete safeConsultationData.deletedAt;
+
+  let safeAnthroData: Record<string, unknown> | undefined;
+  if (anthroData) {
+    safeAnthroData = { ...anthroData };
+    delete safeAnthroData.id;
+    delete safeAnthroData.tenantId;
+    delete safeAnthroData.consultaId;
+    delete safeAnthroData.createdAt;
+    delete safeAnthroData.deletedAt;
+  }
+
+  let safePlanData: Record<string, unknown> | undefined;
+  if (planData) {
+    safePlanData = { ...planData };
+    delete safePlanData.id;
+    delete safePlanData.tenantId;
+    delete safePlanData.consultaId;
+    delete safePlanData.createdAt;
+    delete safePlanData.deletedAt;
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     // 1. Update the consultation

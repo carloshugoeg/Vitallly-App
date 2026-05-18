@@ -210,7 +210,14 @@ export async function updatePlan(
     throw new NotFoundError('Plan nutricional');
   }
 
-  const { id: _id, tenantId: _tenantId, createdAt: _createdAt, deletedAt: _deletedAt, consultaId: _consultaId, comidas, ...rest } = data;
+  const rest = { ...data };
+  delete rest.id;
+  delete rest.tenantId;
+  delete rest.createdAt;
+  delete rest.deletedAt;
+  delete rest.consultaId;
+  const comidas = rest.comidas;
+  delete rest.comidas;
 
   const plan = await prisma.nutritionalPlan.update({
     where: { id },
